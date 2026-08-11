@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { api, setToken } from "./api";
 
+const DEMO_ACCOUNTS = [
+  { role: "CEO", email: "demo@studio.mn", password: "demo1234", color: "var(--gold)" },
+  { role: "Менежер", email: "manager@studio.mn", password: "manager1234", color: "var(--teal)" },
+  { role: "Продакшн", email: "production@studio.mn", password: "production1234", color: "var(--rust)" },
+];
+
 export default function Login({ onAuthed }) {
   const [mode, setMode] = useState("login"); // 'login' | 'register'
-  const [form, setForm] = useState({ email: "demo@studio.mn", password: "demo1234", name: "" });
+  const [form, setForm] = useState({ email: "", password: "", name: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,11 +34,11 @@ export default function Login({ onAuthed }) {
       <form onSubmit={submit} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 14, padding: 28, width: "100%", maxWidth: 360 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <div style={{ background: "var(--gold)", width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700 }} className="plex-mono">
-            SC
+            VP
           </div>
           <div>
-            <div style={{ fontWeight: 600 }}>Studio Control</div>
-            <div style={{ color: "var(--muted)", fontSize: 11 }}>[Компанийн нэр]</div>
+            <div style={{ fontWeight: 600 }}>Viral Pixel</div>
+            <div style={{ color: "var(--muted)", fontSize: 11 }}>Project Control</div>
           </div>
         </div>
 
@@ -67,8 +73,19 @@ export default function Login({ onAuthed }) {
         </button>
 
         {mode === "login" && (
-          <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 12, textAlign: "center" }}>
-            Demo: demo@studio.mn / demo1234
+          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Демо эрхээр нэвтрэх</div>
+            {DEMO_ACCOUNTS.map((acc) => (
+              <button
+                key={acc.email}
+                type="button"
+                onClick={() => setForm({ ...form, email: acc.email, password: acc.password })}
+                style={{ background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 6, padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}
+              >
+                <span style={{ color: acc.color, fontWeight: 600 }}>{acc.role}</span>
+                <span style={{ color: "var(--muted)" }} className="plex-mono">{acc.email}</span>
+              </button>
+            ))}
           </div>
         )}
       </form>

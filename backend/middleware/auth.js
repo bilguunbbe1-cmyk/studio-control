@@ -15,4 +15,13 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, JWT_SECRET };
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: "Танд энэ үйлдлийг хийх эрх байхгүй байна" });
+    }
+    next();
+  };
+}
+
+module.exports = { requireAuth, requireRole, JWT_SECRET };

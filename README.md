@@ -1,8 +1,28 @@
-# Studio Control
+# Viral Pixel — Project Control
 
-Fully functional project/production control dashboard — Node/Express + SQLite backend,
-React (Vite) frontend, JWT email+password auth. Deploy-ready for Render (backend) +
-Vercel or Render Static (frontend).
+Fully functional studio/production management dashboard — Node/Express + SQLite backend,
+React (Vite + React Router) frontend, JWT email+password auth with three role tiers
+(CEO, Manager, Production). UI/logic modeled on the "Viral Pixel — Project Control" reference
+design, backed by a real database instead of static demo content.
+
+## Roles
+
+| Role       | Can do |
+|------------|--------|
+| **CEO**       | Everything — approve/reject decisions, create/edit projects, adjust spend, view full financials, see salary amounts, manage employees |
+| **Manager**   | Same as CEO except cannot see actual salary ₮ amounts (only dates/status) |
+| **Production** | View projects (no budget figures), see the full Production board, manage their own tasks in "Миний ажил", no access to Finance or salary amounts |
+
+Financial figures (budget, spend, margin, revenue, cost line-item amounts) and salary amounts
+are stripped **server-side** for restricted roles — not just hidden in the UI — so there's no
+way to see them by inspecting network requests either.
+
+Demo logins (seeded automatically on first boot):
+```
+CEO:        demo@studio.mn        / demo1234   (Пүрэвцэрэн)
+Manager:    manager@studio.mn     / manager1234  (Гэрэлээ)
+Production: production@studio.mn  / production1234  (Тэмүүлэн)
+```
 
 ## Structure
 
@@ -21,13 +41,8 @@ npm install
 cp .env.example .env      # edit JWT_SECRET to something random
 npm run dev                # or: node server.js
 ```
-Runs on http://localhost:4000. On first boot it creates `data.sqlite`, seeds sample
-projects/approvals/deadlines, and creates a demo login:
-
-```
-email: demo@studio.mn
-password: demo1234
-```
+Runs on http://localhost:4000. On first boot it creates `data.sqlite` and seeds 4 projects,
+6 employees (with contracts/leave/payroll), tasks, decisions, and blockers.
 
 **Frontend**
 ```bash
@@ -38,14 +53,36 @@ npm run dev
 ```
 Runs on http://localhost:5173.
 
+## Pages
+
+- **Тойм (Overview)** — role-tailored landing page: CEO gets a company dashboard (alert
+  banner, KPI cards, project oversight table, decisions queue, profitability, doc-completion,
+  deadlines); Manager gets a personal "today's plan" (own projects, mandatory checklist);
+  Production gets the Production board
+- **Төслүүд (Projects)** — searchable/filterable card grid; opens a 6-tab detail slide-over
+  (Тойм / Төлөвлөгөө / Продакшн / Review / Санхүү / Файл) per project
+- **Миний ажил (My Work)** — the logged-in user's own tasks, filterable by status, with a
+  "Шалгуулах →" action that submits a task for internal review
+- **Продакшн (Production)** — 6-stage kanban board (Pre-production → Final) for the whole team
+- **Санхүү (Finance)** — CEO/Manager only, gated server-side too; company-wide KPIs, per-project
+  profit table, undocumented-expense list
+- **Баг (Team)** — workload view (avatar, title, workload %, active/overdue task counts)
+- **Ажилтнууд (Employees)** — HR roster; opens a 5-tab detail slide-over (Ерөнхий /
+  Хөдөлмөрийн гэрээ / Амралт / Цалин / Файл) — the Цалин (Salary) tab redacts ₮ amounts for
+  everyone except CEO
+
 ## What's functional
 
-- Email+password auth (bcrypt + JWT, 7-day tokens), register + login screens
-- Projects: list, create, and adjust spend — status (on track / at risk / late) is
-  recalculated server-side from spend %
-- Approvals: approve/reject persists to the database and removes the item from the queue
-- Deadlines: listed from the database, soonest first
-- Summary stats (budget, spent, remaining, margin) computed live from real project rows
+- Email+password auth (bcrypt + JWT, 7-day tokens)
+- Three role tiers enforced **server-side** on every route — see `backend/middleware/auth.js`
+  and the per-domain files under `backend/routes/`
+- Projects: create, adjust spend, toggle checklist items, add deliverables/cost items/review
+  items, upload files — all persisted
+- Tasks: kanban stage moves, status transitions, "submit for review" action, ownership checks
+- Decisions: approve/reject/override, persisted with decider + timestamp
+- Employees: full HR record (contract, leave cycle, payroll schedule) with role-gated salary
+  visibility
+- Global search (⌕) and a notifications panel (♢) backed by real queries
 
 All data lives in `backend/data.sqlite` — nothing is hardcoded in the frontend.
 
@@ -61,7 +98,7 @@ persistent disks, so it's the easiest fit here.
    - Build command: `npm install`
    - Start command: `node server.js`
 3. Add a **persistent disk** (Render dashboard → Disks) mounted at e.g. `/opt/render/project/src/backend`
-   so `data.sqlite` survives deploys.
+   so `data.sqlite` and `uploads/` survive deploys.
 4. Set environment variables: `JWT_SECRET` (long random string), `PORT` (Render sets this
    automatically — don't override).
 5. Note the deployed URL, e.g. `https://studio-control-api.onrender.com`.
@@ -83,7 +120,6 @@ app.use(cors({ origin: "https://your-frontend-domain.com" }));
 ## Next steps worth considering
 - Move from SQLite to Postgres if you expect concurrent writes at scale (swap
   `better-sqlite3` for `pg` — the route logic stays basically the same).
-- Add role-based permissions (the `role` column on `users` is there but unused beyond
-  storage — currently any logged-in user can approve/reject and create projects).
 - Add password reset / email verification.
 - Rate-limit `/api/auth/login` to slow down brute-force attempts.
+- Drag-and-drop for the Production kanban (currently move-by-button).
