@@ -52,10 +52,17 @@ router.get("/tasks", (req, res) => {
   res.json(rows.map(shapeTask));
 });
 
-router.post("/tasks", CAN_MANAGE, (req, res) => {
-  const { projectId, title, assigneeEmployeeId, stage, dueDate, dueTime } = req.body || {};
+router.post("/tasks", (req, res) => {
+  const { projectId, title, stage, dueDate, dueTime, selfAssign } = req.body || {};
+  let { assigneeEmployeeId } = req.body || {};
   if (!projectId || !title) return res.status(400).json({ error: "projectId, title шаардлагатай" });
   if (stage && !STAGE_VALUES.includes(stage)) return res.status(400).json({ error: "stage буруу байна" });
+
+  if (!canManage(req.user.role) || selfAssign) {
+    const myEmployeeId = employeeIdForUser(req.user.id);
+    if (!myEmployeeId) return res.status(403).json({ error: "Танд ажил үүсгэх эрх байхгүй байна" });
+    assigneeEmployeeId = myEmployeeId;
+  }
 
   const info = db
     .prepare(
@@ -66,6 +73,13 @@ router.post("/tasks", CAN_MANAGE, (req, res) => {
 
   const row = db.prepare(`${baseQuery()} WHERE t.id = ?`).get(info.lastInsertRowid);
   res.status(201).json(shapeTask(row));
+});
+
+router.delete("/tasks/:id", CAN_MANAGE, (req, res) => {
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ?").get(req.params.id);
+  if (!task) return res.status(404).json({ error: "Даалгавар олдсонгүй" });
+  db.prepare("DELETE FROM tasks WHERE id = ?").run(task.id);
+  res.status(204).end();
 });
 
 function assertCanTouch(req, res, task) {

@@ -173,7 +173,37 @@ router.patch("/projects/:id/spend", CAN_MANAGE, (req, res) => {
   res.json(shapeDetail(updated, req.user.role));
 });
 
+router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+
+  const { name, client, ownerEmployeeId, contractAmount, dueDate } = req.body || {};
+  if (name != null && !String(name).trim()) return res.status(400).json({ error: "name хоосон байж болохгүй" });
+
+  const owner = ownerEmployeeId !== undefined ? employeeById(ownerEmployeeId) : undefined;
+
+  db.prepare(
+    `UPDATE projects SET
+       name = ?, client = ?, lead = ?, owner_employee_id = ?, contract_amount = ?, budget = ?, due_date = ?
+     WHERE id = ?`
+  ).run(
+    name != null ? name : project.name,
+    client != null ? client : project.client,
+    owner !== undefined ? (owner ? owner.name : project.lead) : project.lead,
+    owner !== undefined ? (owner ? owner.id : null) : project.owner_employee_id,
+    contractAmount != null ? Number(contractAmount) : project.contract_amount,
+    contractAmount != null ? Number(contractAmount) : project.budget,
+    dueDate !== undefined ? dueDate : project.due_date,
+    project.id
+  );
+
+  const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(project.id);
+  res.json(shapeDetail(updated, req.user.role));
+});
+
 router.delete("/projects/:id", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
   db.prepare("DELETE FROM projects WHERE id = ?").run(req.params.id);
   res.status(204).end();
 });

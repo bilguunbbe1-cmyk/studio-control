@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { usePanels } from "../panels";
+import { onEvent } from "../bus";
 import { fmtM, STATUS_META, Badge, ErrorBanner, EmptyState } from "../components";
 import PageHeader from "../components/PageHeader";
 
@@ -31,6 +32,8 @@ export default function Projects({ user }) {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
   }, [load]);
+
+  useEffect(() => onEvent("projects-changed", load), [load]);
 
   const counts = projects.reduce((acc, p) => ({ ...acc, [p.status]: (acc[p.status] || 0) + 1 }), {});
 

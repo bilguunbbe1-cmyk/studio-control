@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Cake, Sun, FileText, Wallet } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
+import { onEvent } from "../bus";
 import { ErrorBanner, EmptyState, useToast, FieldRow } from "../components";
 import PageHeader from "../components/PageHeader";
 
@@ -41,6 +42,8 @@ export default function Employees({ user }) {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
   }, [load]);
+
+  useEffect(() => onEvent("employees-changed", load), [load]);
 
   const missingContractCount = employees.filter((e) => e.contractStatus !== "Гэрээтэй").length;
   const leavePlanCount = employees.filter((e) => e.leaveStatus === "Төлөвлөөгүй").length;

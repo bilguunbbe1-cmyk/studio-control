@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
 import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast } from "../components";
@@ -30,6 +30,16 @@ export default function Production({ user }) {
   async function move(id, stage) {
     try {
       await api.updateTaskStage(id, stage);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function removeTask(id, title) {
+    if (!window.confirm(`"${title}"-г устгах уу?`)) return;
+    try {
+      await api.deleteTask(id);
       load();
     } catch (err) {
       setError(err.message);
@@ -97,8 +107,17 @@ export default function Production({ user }) {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 60 }}>
                 {colTasks.map((t) => (
-                  <div key={t.id} onClick={() => openProject(t.projectId)} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, opacity: canTouch(t) ? 1 : 0.55, cursor: "pointer" }}>
-                    <div style={{ color: "var(--muted)", fontSize: 10, marginBottom: 4 }}>{t.projectClient} / {t.projectName}</div>
+                  <div key={t.id} onClick={() => openProject(t.projectId)} style={{ position: "relative", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, opacity: canTouch(t) ? 1 : 0.55, cursor: "pointer" }}>
+                    {canManage && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeTask(t.id, t.title); }}
+                        style={{ position: "absolute", top: 6, right: 6, background: "transparent", color: "var(--muted)", padding: 2 }}
+                        title="Устгах"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    <div style={{ color: "var(--muted)", fontSize: 10, marginBottom: 4, paddingRight: 14 }}>{t.projectClient} / {t.projectName}</div>
                     <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>{t.title}</div>
                     <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 8 }}>
                       Хариуцагч: {t.assignee || "—"}

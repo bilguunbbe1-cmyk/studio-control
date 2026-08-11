@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 
 const db = new Database(path.join(__dirname, "data.sqlite"));
 db.pragma("journal_mode = WAL");
+db.pragma("foreign_keys = ON");
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
@@ -151,7 +152,7 @@ CREATE TABLE IF NOT EXISTS approvals (
   kind TEXT NOT NULL,
   title TEXT NOT NULL,
   amount REAL,
-  project_id INTEGER REFERENCES projects(id),
+  project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
   reason TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   decided_by INTEGER,
@@ -162,7 +163,7 @@ CREATE TABLE IF NOT EXISTS approvals (
 CREATE TABLE IF NOT EXISTS deadlines (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
-  project_id INTEGER REFERENCES projects(id),
+  project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   project TEXT,
   person TEXT,
   due_date TEXT NOT NULL,

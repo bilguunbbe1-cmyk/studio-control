@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { X, Check, Plus } from "lucide-react";
+import { X, Check, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { api } from "../api";
-import { SlideOver, TabBar, Badge, STATUS_META, RECEIPT_META, fmtM, useToast, EmptyState } from "../components";
+import { emit } from "../bus";
+import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, fmtM, useToast, EmptyState } from "../components";
 
 const TABS = [
   { value: "overview", label: "Тойм" },
@@ -26,6 +27,8 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [project, setProject] = useState(null);
   const [tab, setTab] = useState("overview");
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const toast = useToast();
   const canManage = user?.role === "ceo" || user?.role === "manager";
 
@@ -41,10 +44,70 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   useEffect(() => {
     setTab("overview");
     setProject(null);
+    setMenuOpen(false);
+    setEditing(false);
     load();
   }, [projectId, load]);
 
   if (!projectId) return null;
+
+  async function saveEdit(payload) {
+    try {
+      await api.updateProject(projectId, payload);
+      toast("Хадгалагдлаа");
+      setEditing(false);
+      load();
+      emit("projects-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function deleteProject() {
+    if (!window.confirm(`"${project.name}" төслийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+    try {
+      await api.deleteProject(projectId);
+      toast("Төсөл устгагдлаа");
+      emit("projects-changed");
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function addCostItem() {
+    const category = window.prompt("Зардлын ангилал:");
+    if (!category) return;
+    const amount = window.prompt("Дүн (₮):");
+    if (!amount || Number.isNaN(Number(amount))) return;
+    try {
+      await api.addCostItem(projectId, { category, amount: Number(amount), receiptStatus: "pending" });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function addReviewItem() {
+    const title = window.prompt("Гарчиг:");
+    if (!title) return;
+    try {
+      await api.addReviewItem(projectId, { title, version: "v01", reviewStatus: "editing" });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function bumpDeliverable(d) {
+    if (d.doneCount >= d.totalCount) return;
+    try {
+      await api.updateDeliverable(d.id, { doneCount: d.doneCount + 1 });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function toggleChecklist(item) {
     try {
@@ -99,11 +162,30 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     <SlideOver open={!!projectId} onClose={onClose}>
       {!project ? (
         <div style={{ color: "var(--muted)", fontSize: 12 }}>Ачааллаж байна...</div>
+      ) : editing ? (
+        <EditProjectForm project={project} onCancel={() => setEditing(false)} onSave={saveEdit} />
       ) : (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{project.code} · {(project.client || "").toUpperCase()}</div>
-            <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+              {canManage && (
+                <>
+                  <button onClick={() => setMenuOpen((v) => !v)} style={{ background: "transparent" }}><MoreHorizontal size={16} color="var(--muted)" /></button>
+                  {menuOpen && (
+                    <div style={{ position: "absolute", top: 24, right: 24, background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden", zIndex: 5, minWidth: 140 }}>
+                      <button onClick={() => { setMenuOpen(false); setEditing(true); }} style={{ background: "transparent", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Pencil size={12} /> Засах
+                      </button>
+                      <button onClick={() => { setMenuOpen(false); deleteProject(); }} style={{ background: "transparent", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, color: "var(--rust)", display: "flex", alignItems: "center", gap: 6 }}>
+                        <Trash2 size={12} /> Устгах
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
+            </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{project.name}</h2>
@@ -116,10 +198,10 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           {tab === "overview" && (
             <OverviewTab project={project} canManage={canManage} onToggle={toggleChecklist} onRemind={remind} />
           )}
-          {tab === "plan" && <PlanTab project={project} canManage={canManage} onAdd={addDeliverable} />}
+          {tab === "plan" && <PlanTab project={project} canManage={canManage} onAdd={addDeliverable} onBump={bumpDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
-          {tab === "review" && <ReviewTab project={project} />}
-          {tab === "finance" && <FinanceTab project={project} canManage={canManage} onReceipt={setReceipt} />}
+          {tab === "review" && <ReviewTab project={project} canManage={canManage} onAdd={addReviewItem} />}
+          {tab === "finance" && <FinanceTab project={project} canManage={canManage} onReceipt={setReceipt} onAddCostItem={addCostItem} />}
           {tab === "files" && <FilesTab project={project} canManage={canManage} onUpload={uploadFile} />}
         </>
       )}
@@ -130,6 +212,56 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
 function ErrorLine({ message }) {
   if (!message) return null;
   return <div style={{ color: "var(--rust)", fontSize: 11, marginBottom: 12 }}>{message}</div>;
+}
+
+function EditProjectForm({ project, onCancel, onSave }) {
+  const [employees, setEmployees] = useState([]);
+  const [form, setForm] = useState({
+    name: project.name,
+    client: project.client || "",
+    contractAmount: project.contractAmount ?? "",
+    dueDate: project.dueDate || "",
+  });
+
+  useEffect(() => {
+    api.getEmployees().then(setEmployees).catch(() => {});
+  }, []);
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>Төсөл засах</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        <FieldRow label="Төслийн нэр" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+        <FieldRow label="Харилцагч" value={form.client} onChange={(v) => setForm({ ...form, client: v })} required={false} />
+        <FieldRow
+          label="Эзэмшигч"
+          value={form.ownerEmployeeId ?? ""}
+          onChange={(v) => setForm({ ...form, ownerEmployeeId: v })}
+          options={employees.map((e) => ({ value: String(e.id), label: `${e.name} — ${e.title}` }))}
+          required={false}
+        />
+        <FieldRow label="Гэрээний дүн (₮)" type="number" value={form.contractAmount} onChange={(v) => setForm({ ...form, contractAmount: v })} />
+        <FieldRow label="Дуусах огноо" type="date" value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} required={false} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
+        <button
+          onClick={() =>
+            onSave({
+              name: form.name,
+              client: form.client,
+              ownerEmployeeId: form.ownerEmployeeId !== undefined ? form.ownerEmployeeId || null : undefined,
+              contractAmount: Number(form.contractAmount),
+              dueDate: form.dueDate || null,
+            })
+          }
+          style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
+        >
+          Хадгалах
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Metric({ label, value }) {
@@ -203,7 +335,7 @@ function SectionHeading({ title, sub, extra }) {
   );
 }
 
-function PlanTab({ project, canManage, onAdd }) {
+function PlanTab({ project, canManage, onAdd, onBump }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -217,8 +349,14 @@ function PlanTab({ project, canManage, onAdd }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {project.deliverables.map((d) => {
           const pct = d.totalCount ? Math.round((d.doneCount / d.totalCount) * 100) : 0;
+          const done = d.doneCount >= d.totalCount;
           return (
-            <div key={d.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+            <div
+              key={d.id}
+              onClick={() => canManage && onBump(d)}
+              title={canManage && !done ? "Дарж 1-ээр дуусгах" : undefined}
+              style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: canManage && !done ? "pointer" : "default" }}
+            >
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
                 <span style={{ fontWeight: 500 }}>{d.title}</span>
                 <span style={{ color: "var(--muted)" }} className="plex-mono">{d.doneCount} / {d.totalCount} дууссан {d.doneCount > 0 && `· ${pct}%`}</span>
@@ -261,10 +399,17 @@ function ProductionTab({ project }) {
 
 const REVIEW_STATUS_LABEL = { editing: "Edit хийж байна", client_review: "Client review", approved: "Approved" };
 
-function ReviewTab({ project }) {
+function ReviewTab({ project, canManage, onAdd }) {
   return (
     <div>
-      <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 4px" }}>Edit pipeline</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Edit pipeline</h3>
+        {canManage && (
+          <button onClick={onAdd} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Plus size={12} /> Review
+          </button>
+        )}
+      </div>
       <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 12 }}>{project.reviewItems.length} client feedback</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {project.reviewItems.map((r) => (
@@ -282,7 +427,7 @@ function ReviewTab({ project }) {
   );
 }
 
-function FinanceTab({ project, canManage, onReceipt }) {
+function FinanceTab({ project, canManage, onReceipt, onAddCostItem }) {
   if (!canManage) return <EmptyState>Санхүүгийн мэдээлэл боломжгүй.</EmptyState>;
   return (
     <div>
@@ -293,7 +438,12 @@ function FinanceTab({ project, canManage, onReceipt }) {
         <Metric label="Margin" value={`${project.marginPct}%`} />
       </div>
 
-      <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px" }}>Зардлын хяналт</h3>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Зардлын хяналт</h3>
+        <button onClick={onAddCostItem} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+          <Plus size={12} /> Зардал
+        </button>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {project.costItems.map((c) => {
           const meta = RECEIPT_META[c.receiptStatus];

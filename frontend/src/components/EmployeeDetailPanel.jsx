@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, MoreHorizontal, Trash2 } from "lucide-react";
 import { api } from "../api";
-import { SlideOver, TabBar, Badge, fmt, useToast, EmptyState } from "../components";
+import { emit } from "../bus";
+import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState } from "../components";
 
 const TABS = [
   { value: "general", label: "Ерөнхий" },
@@ -15,6 +16,8 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [employee, setEmployee] = useState(null);
   const [tab, setTab] = useState("general");
   const [error, setError] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const toast = useToast();
   const canManage = user?.role === "ceo" || user?.role === "manager";
 
@@ -30,10 +33,36 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   useEffect(() => {
     setTab("general");
     setEmployee(null);
+    setMenuOpen(false);
+    setEditing(false);
     load();
   }, [employeeId, load]);
 
   if (!employeeId) return null;
+
+  async function saveEdit(payload) {
+    try {
+      await api.updateEmployee(employeeId, payload);
+      toast("Хадгалагдлаа");
+      setEditing(false);
+      load();
+      emit("employees-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function deleteEmployee() {
+    if (!window.confirm(`"${employee.name}"-ийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
+    try {
+      await api.deleteEmployee(employeeId);
+      toast("Ажилтан устгагдлаа");
+      emit("employees-changed");
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function planLeave() {
     try {
@@ -72,11 +101,27 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
     <SlideOver open={!!employeeId} onClose={onClose}>
       {!employee ? (
         <div style={{ color: "var(--muted)", fontSize: 12 }}>Ачааллаж байна...</div>
+      ) : editing ? (
+        <EditEmployeeForm employee={employee} onCancel={() => setEditing(false)} onSave={saveEdit} />
       ) : (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{employee.code} · Идэвхтэй ажилтан</div>
-            <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+              {canManage && (
+                <>
+                  <button onClick={() => setMenuOpen((v) => !v)} style={{ background: "transparent" }}><MoreHorizontal size={16} color="var(--muted)" /></button>
+                  {menuOpen && (
+                    <div style={{ position: "absolute", top: 24, right: 24, background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden", zIndex: 5, minWidth: 140 }}>
+                      <button onClick={() => { setMenuOpen(false); deleteEmployee(); }} style={{ background: "transparent", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, color: "var(--rust)", display: "flex", alignItems: "center", gap: 6 }}>
+                        <Trash2 size={12} /> Устгах
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
+            </div>
           </div>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 2px" }}>{employee.name}</h2>
           <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 20 }}>{employee.title}</div>
@@ -84,7 +129,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           <TabBar tabs={TABS} active={tab} onChange={setTab} />
           {error && <div style={{ color: "var(--rust)", fontSize: 11, marginBottom: 12 }}>{error}</div>}
 
-          {tab === "general" && <GeneralTab employee={employee} onSubmitBirthday={submitBirthday} />}
+          {tab === "general" && <GeneralTab employee={employee} canManage={canManage} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} />}
           {tab === "contract" && <ContractTab employee={employee} />}
           {tab === "leave" && <LeaveTab employee={employee} canManage={canManage} onPlan={planLeave} />}
           {tab === "salary" && <SalaryTab employee={employee} />}
@@ -92,6 +137,24 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
         </>
       )}
     </SlideOver>
+  );
+}
+
+function EditEmployeeForm({ employee, onCancel, onSave }) {
+  const [form, setForm] = useState({ name: employee.name, title: employee.title, city: employee.city || "" });
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>Ажилтны мэдээлэл засах</h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        <FieldRow label="Нэр" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+        <FieldRow label="Албан тушаал" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
+        <FieldRow label="Хот" value={form.city} onChange={(v) => setForm({ ...form, city: v })} required={false} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
+        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Хадгалах</button>
+      </div>
+    </div>
   );
 }
 
@@ -105,11 +168,18 @@ function Metric({ label, value, sub }) {
   );
 }
 
-function GeneralTab({ employee, onSubmitBirthday }) {
+function GeneralTab({ employee, canManage, onSubmitBirthday, onEdit }) {
   return (
     <div>
-      <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 16 }}>
-        {employee.title} · {employee.city} · {employee.hireDate}-нд ажилд орсон
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div style={{ color: "var(--muted)", fontSize: 12 }}>
+          {employee.title} · {employee.city} · {employee.hireDate}-нд ажилд орсон
+        </div>
+        {canManage && (
+          <button onClick={onEdit} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, flexShrink: 0 }}>
+            Мэдээлэл засах
+          </button>
+        )}
       </div>
 
       {!employee.birthday && (

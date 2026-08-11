@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { usePanels } from "../panels";
+import { onEvent } from "../bus";
 import { ErrorBanner, EmptyState } from "../components";
 import PageHeader from "../components/PageHeader";
 
@@ -20,6 +21,8 @@ export default function Team() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => onEvent("employees-changed", load), [load]);
 
   return (
     <div>

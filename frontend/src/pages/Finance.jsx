@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { usePanels } from "../panels";
+import { onEvent } from "../bus";
 import { fmt, fmtM, StatCard, ErrorBanner, EmptyState } from "../components";
 import PageHeader from "../components/PageHeader";
 
@@ -25,6 +26,8 @@ export default function Finance() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => onEvent("projects-changed", load), [load]);
 
   return (
     <div>

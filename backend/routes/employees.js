@@ -144,6 +144,22 @@ router.patch("/employees/:id", CAN_MANAGE, (req, res) => {
   res.json(shapeListItem(db.prepare("SELECT * FROM employees WHERE id = ?").get(e.id)));
 });
 
+router.delete("/employees/:id", CAN_MANAGE, (req, res) => {
+  const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
+  if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
+  try {
+    db.prepare("DELETE FROM employees WHERE id = ?").run(e.id);
+    res.status(204).end();
+  } catch (err) {
+    if (String(err.message).includes("FOREIGN KEY")) {
+      return res.status(409).json({
+        error: "Энэ ажилтныг устгах боломжгүй — түүнд оноогдсон төсөл эсвэл ажил байна. Эхлээд шилжүүлнэ үү.",
+      });
+    }
+    throw err;
+  }
+});
+
 router.post("/employees/:id/birthday", CAN_MANAGE, (req, res) => {
   const { month, day } = req.body || {};
   if (!month || !day) return res.status(400).json({ error: "month, day шаардлагатай" });

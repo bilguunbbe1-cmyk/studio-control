@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Check, X, AlertTriangle, Wallet, Receipt, PlusCircle } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
+import { onEvent } from "../bus";
 import { fmt, fmtM, STATUS_META, Gauge, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
 import Production from "./Production";
@@ -29,6 +30,9 @@ export default function Overview({ user }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => onEvent("projects-changed", load), [load]);
+  useEffect(() => onEvent("employees-changed", load), [load]);
 
   if (user.role === "production") return <Production user={user} />;
 

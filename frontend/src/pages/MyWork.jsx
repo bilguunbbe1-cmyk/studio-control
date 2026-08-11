@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
+import { Plus } from "lucide-react";
 import { api } from "../api";
 import { TASK_STATUS_META, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
+import NewTaskModal from "../components/NewTaskModal";
 
 const FILTERS = [
   { value: "all", label: "Бүгд" },
@@ -15,6 +17,7 @@ export default function MyWork({ user }) {
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
+  const [showNew, setShowNew] = useState(false);
   const toast = useToast();
 
   const load = useCallback(async () => {
@@ -44,9 +47,14 @@ export default function MyWork({ user }) {
   return (
     <div>
       <PageHeader title="Миний ажил" subtitle="2026 оны 8-р сар" />
-      <p style={{ color: "var(--muted)", fontSize: 12, marginTop: -12, marginBottom: 20 }}>
-        Нэг дор зөвхөн хийх ёстой ажлууд харагдана.
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: -12, marginBottom: 20 }}>
+        <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>
+          Нэг дор зөвхөн хийх ёстой ажлууд харагдана.
+        </p>
+        <button onClick={() => setShowNew(true)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8, display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <Plus size={12} /> Ажил нэмэх
+        </button>
+      </div>
       <ErrorBanner message={error} />
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
@@ -95,6 +103,8 @@ export default function MyWork({ user }) {
         })}
         {visible.length === 0 && <div style={{ padding: 20 }}><EmptyState>Ажил алга</EmptyState></div>}
       </div>
+
+      <NewTaskModal open={showNew} onClose={() => setShowNew(false)} onCreated={load} />
     </div>
   );
 }
