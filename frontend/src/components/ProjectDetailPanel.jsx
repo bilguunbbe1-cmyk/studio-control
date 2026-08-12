@@ -155,8 +155,10 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   async function addDeliverable() {
     const title = window.prompt("Deliverable нэр:");
     if (!title) return;
+    const totalCount = window.prompt("Нийт тоо (жишээ нь Reel-ийн ширхэг):", "1");
+    if (!totalCount || Number.isNaN(Number(totalCount)) || Number(totalCount) < 1) return;
     try {
-      await api.addDeliverable(projectId, { title, totalCount: 1 });
+      await api.addDeliverable(projectId, { title, totalCount: Number(totalCount) });
       load();
     } catch (err) {
       setError(err.message);
