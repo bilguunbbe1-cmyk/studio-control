@@ -25,11 +25,11 @@ export default function Login({ onAuthed }) {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <form onSubmit={submit} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 14, padding: 28, width: "100%", maxWidth: 360 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-          <div style={{ background: "var(--gold)", width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700 }} className="plex-mono">
-            VP
+          <div style={{ background: "var(--gold)", width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 700, fontSize: 12 }} className="plex-mono">
+            PXL
           </div>
           <div>
-            <div style={{ fontWeight: 600 }}>Viral Pixel</div>
+            <div style={{ fontWeight: 600 }}>PXL Consulting</div>
             <div style={{ color: "var(--muted)", fontSize: 11 }}>Project Control</div>
           </div>
         </div>
@@ -46,7 +46,7 @@ export default function Login({ onAuthed }) {
         <button
           type="submit"
           disabled={loading}
-          style={{ background: "var(--gold)", color: "#12141c", width: "100%", padding: "10px 0", borderRadius: 8, fontWeight: 600, fontSize: 13, marginTop: 16, opacity: loading ? 0.6 : 1 }}
+          style={{ background: "var(--gold)", color: "#ffffff", width: "100%", padding: "10px 0", borderRadius: 8, fontWeight: 600, fontSize: 13, marginTop: 16, opacity: loading ? 0.6 : 1 }}
         >
           {loading ? "..." : "Нэвтрэх"}
         </button>

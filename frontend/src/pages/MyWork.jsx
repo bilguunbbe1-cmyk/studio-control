@@ -14,6 +14,13 @@ const FILTERS = [
   { value: "done", label: "Дууссан" },
 ];
 
+const NEXT_STEP = {
+  not_started: { status: "editing", label: "Эхлүүлэх →", message: "Edit эхэллээ" },
+  editing: { status: "internal_review", label: "Шалгуулах →", message: "Task дотоод хяналт руу шилжлээ" },
+  internal_review: { status: "awaiting_client", label: "Клиентэд илгээх →", message: "Task харилцагч руу илгээгдлээ" },
+  awaiting_client: { status: "done", label: "Клиент зөвшөөрсөн ✓", message: "Task дууслаа" },
+};
+
 export default function MyWork({ user }) {
   const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -33,10 +40,12 @@ export default function MyWork({ user }) {
     load();
   }, [load]);
 
-  async function submitForReview(id) {
+  async function advance(t) {
+    const step = NEXT_STEP[t.status];
+    if (!step) return;
     try {
-      const res = await api.submitForReview(id);
-      toast(`✓ ${res.message}`);
+      await api.updateTaskStatus(t.id, step.status);
+      toast(`✓ ${step.message}`);
       load();
     } catch (err) {
       setError(err.message);
@@ -95,9 +104,9 @@ export default function MyWork({ user }) {
               <span className="plex-mono">{t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate || "—"}</span>
               <span style={{ color: meta.color, fontWeight: 600, fontSize: 11 }}>{meta.label}</span>
               <span style={{ textAlign: "right" }}>
-                {t.status !== "internal_review" && t.status !== "done" && (
-                  <button onClick={() => submitForReview(t.id)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--teal)", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6 }}>
-                    Шалгуулах →
+                {NEXT_STEP[t.status] && (
+                  <button onClick={() => advance(t)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--teal)", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                    {NEXT_STEP[t.status].label}
                   </button>
                 )}
               </span>

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState } from "react";
+import { API_BASE } from "./api";
 
 export function fmt(n) {
   return new Intl.NumberFormat("mn-MN").format(Math.round(n || 0));
@@ -10,13 +11,13 @@ export function fmtM(n) {
 
 export const STATUS_META = {
   ontrack: { label: "Хэвийн", color: "var(--teal)" },
-  risk: { label: "Эрсдэлтэй", color: "var(--gold)" },
+  risk: { label: "Эрсдэлтэй", color: "var(--amber)" },
   late: { label: "Хоцорсон", color: "var(--rust)" },
 };
 
 export const TASK_STATUS_META = {
   not_started: { label: "Эхлээгүй", color: "var(--muted)" },
-  editing: { label: "Edit хийж байна", color: "var(--gold)" },
+  editing: { label: "Edit хийж байна", color: "var(--amber)" },
   internal_review: { label: "Дотоод хяналт", color: "var(--teal)" },
   awaiting_client: { label: "Харилцагч хүлээж байна", color: "var(--rust)" },
   done: { label: "Дууссан", color: "var(--teal)" },
@@ -35,7 +36,7 @@ export const STAGE_ORDER = ["pre_production", "ready_to_shoot", "shooting", "edi
 export const RECEIPT_META = {
   has_receipt: { label: "Баримттай", color: "var(--teal)" },
   no_receipt: { label: "Баримтгүй", color: "var(--rust)" },
-  pending: { label: "Pending", color: "var(--gold)" },
+  pending: { label: "Pending", color: "var(--amber)" },
 };
 
 export function Gauge({ pct, color, size = 60 }) {
@@ -93,9 +94,26 @@ export function FieldRow({ label, value, onChange, type = "text", options, requi
   );
 }
 
+export const BADGE_TINTS = {
+  "var(--teal)": "#e7f6ef",
+  "var(--amber)": "#fff2d8",
+  "var(--rust)": "#fde9eb",
+  "var(--gold)": "#eef2fb",
+  "var(--muted)": "#eef1f6",
+};
+
+export function Avatar({ name, photoUrl, size = 26, bg = "var(--teal)" }) {
+  const src = photoUrl && (photoUrl.startsWith("http") ? photoUrl : `${API_BASE}${photoUrl}`);
+  const style = { width: size, height: size, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: Math.round(size * 0.42), overflow: "hidden" };
+  if (src) {
+    return <img src={src} alt={name} style={{ ...style, objectFit: "cover" }} />;
+  }
+  return <span style={{ ...style, background: bg, color: "#ffffff" }}>{name?.[0]?.toUpperCase() || "?"}</span>;
+}
+
 export function Badge({ color, children }) {
   return (
-    <span style={{ background: `${color}22`, color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, flexShrink: 0 }}>
+    <span style={{ background: BADGE_TINTS[color] || "var(--panel2)", color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, flexShrink: 0 }}>
       {children}
     </span>
   );
@@ -104,7 +122,7 @@ export function Badge({ color, children }) {
 export function ErrorBanner({ message }) {
   if (!message) return null;
   return (
-    <div style={{ background: "#c9613f22", color: "var(--rust)", padding: "10px 14px", borderRadius: 8, fontSize: 12, marginBottom: 16 }}>
+    <div style={{ background: "#fde9eb", color: "var(--rust)", padding: "10px 14px", borderRadius: 8, fontSize: 12, marginBottom: 16 }}>
       {message}
     </div>
   );

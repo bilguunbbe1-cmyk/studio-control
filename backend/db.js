@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS employees (
   birthday TEXT,
   phone TEXT,
   department TEXT,
+  photo_url TEXT,
   contract_status TEXT NOT NULL DEFAULT 'Гэрээтэй',
   workload_pct INTEGER NOT NULL DEFAULT 0,
   base_salary_amount REAL NOT NULL DEFAULT 0,

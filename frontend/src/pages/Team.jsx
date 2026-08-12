@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { usePanels } from "../panels";
 import { onEvent } from "../bus";
-import { ErrorBanner, EmptyState } from "../components";
+import { ErrorBanner, EmptyState, Avatar } from "../components";
 import PageHeader from "../components/PageHeader";
 
 export default function Team() {
@@ -38,9 +38,7 @@ export default function Team() {
         {team.map((m) => (
           <button key={m.id} onClick={() => openEmployee(m.id)} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 16, textAlign: "left" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <div style={{ background: "var(--teal)", width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700, fontSize: 13 }}>
-                {m.name?.[0]}
-              </div>
+              <Avatar name={m.name} photoUrl={m.photoUrl} size={34} />
               <div>
                 <div style={{ fontWeight: 500, fontSize: 13 }}>{m.name}</div>
                 <div style={{ color: "var(--muted)", fontSize: 11 }}>{m.title}</div>

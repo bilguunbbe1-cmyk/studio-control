@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, MoreHorizontal, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState, Avatar } from "../components";
 
 const FULL_TABS = [
   { value: "general", label: "Ерөнхий" },
@@ -112,7 +112,22 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   }
 
   const canSeeFull = employee?.canSeeFull !== false;
+  const isSelfView = canSeeFull && !isCeo;
+  const canEditPhoto = isCeo || isSelfView;
   const tabs = canSeeFull ? FULL_TABS : LIMITED_TABS;
+
+  async function uploadPhoto(file) {
+    if (!file) return;
+    try {
+      await api.uploadEmployeePhoto(employeeId, file);
+      toast("Зураг шинэчлэгдлээ");
+      load();
+      emit("employees-changed");
+      if (isSelfView) emit("me-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
     <SlideOver open={!!employeeId} onClose={onClose}>
@@ -142,13 +157,32 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
               <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
             </div>
           </div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 2px" }}>{employee.name}</h2>
-          <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 20 }}>{employee.title}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <label style={{ position: "relative", cursor: canEditPhoto ? "pointer" : "default" }}>
+              <Avatar name={employee.name} photoUrl={employee.photoUrl} size={52} />
+              {canEditPhoto && (
+                <input type="file" accept="image/*" style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} onChange={(e) => uploadPhoto(e.target.files[0])} />
+              )}
+            </label>
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 2px" }}>{employee.name}</h2>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>{employee.title}</div>
+            </div>
+          </div>
 
           <TabBar tabs={tabs} active={canSeeFull ? tab : "general"} onChange={setTab} />
           {error && <div style={{ color: "var(--rust)", fontSize: 11, marginBottom: 12 }}>{error}</div>}
 
-          {!canSeeFull && <EmptyState>Энэ ажилтны дэлгэрэнгүй мэдээлэл зөвхөн тухайн хүн болон CEO-д харагдана.</EmptyState>}
+          {!canSeeFull && (
+            <div>
+              <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                <Row label="Хэлтэс" value={employee.department || "—"} />
+                <Row label="Утас" value={employee.phone || "—"} />
+                <Row label="Төрсөн өдөр" value={employee.birthday || "—"} />
+              </div>
+              <EmptyState>Гэрээ, амралт, цалингийн дэлгэрэнгүй мэдээлэл зөвхөн тухайн хүн болон CEO-д харагдана.</EmptyState>
+            </div>
+          )}
           {canSeeFull && tab === "general" && <GeneralTab employee={employee} isCeo={isCeo} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} onGrantLogin={() => setGrantingLogin(true)} />}
           {canSeeFull && tab === "contract" && <ContractTab employee={employee} />}
           {canSeeFull && tab === "leave" && <LeaveTab employee={employee} isCeo={isCeo} onPlan={planLeave} />}
@@ -184,7 +218,7 @@ function EditEmployeeForm({ employee, onCancel, onSave }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
-        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Хадгалах</button>
+        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Хадгалах</button>
       </div>
     </div>
   );
@@ -209,7 +243,7 @@ function GrantLoginForm({ employee, onCancel, onSave }) {
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
-        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Үүсгэх</button>
+        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Үүсгэх</button>
       </div>
     </div>
   );
@@ -238,7 +272,7 @@ function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit, onGrantLogin })
               Мэдээлэл засах
             </button>
             {!employee.hasLogin && (
-              <button onClick={onGrantLogin} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
+              <button onClick={onGrantLogin} style={{ background: "var(--gold)", color: "#ffffff", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
                 Нэвтрэх эрх өгөх
               </button>
             )}
@@ -250,7 +284,7 @@ function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit, onGrantLogin })
         <div style={{ background: "var(--panel2)", border: "1px dashed var(--line)", borderRadius: 10, padding: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Төрсөн өдөр бүртгэгдээгүй байна</div>
           <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 8 }}>Сануулахын тулд сар, өдрийг оруулна уу. Он заавал биш.</div>
-          {isCeo && <button onClick={onSubmitBirthday} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Оруулах</button>}
+          {isCeo && <button onClick={onSubmitBirthday} style={{ background: "var(--gold)", color: "#ffffff", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Оруулах</button>}
         </div>
       )}
 
@@ -317,7 +351,7 @@ function LeaveTab({ employee, isCeo, onPlan }) {
             Компанийн {leave.cycleLengthMonths} сарын давтамжийн тохиргоогоор {leave.nextCycleDate}-ээс амралтын дараагийн цикл нээгдсэн.
           </div>
           {isCeo && (
-            <button onClick={onPlan} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Амралт төлөвлөх</button>
+            <button onClick={onPlan} style={{ background: "var(--gold)", color: "#ffffff", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Амралт төлөвлөх</button>
           )}
         </div>
       )}

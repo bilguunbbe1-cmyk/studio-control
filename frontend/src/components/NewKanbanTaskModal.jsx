@@ -58,7 +58,7 @@ export default function NewKanbanTaskModal({ stage, canPickAssignee, onClose, on
           )}
         </div>
         {error && <div style={{ color: "var(--rust)", fontSize: 11, marginTop: 10 }}>{error}</div>}
-        <button type="submit" style={{ background: "var(--gold)", color: "#12141c", width: "100%", marginTop: 16, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+        <button type="submit" style={{ background: "var(--gold)", color: "#ffffff", width: "100%", marginTop: 16, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           Нэмэх <ArrowRight size={13} />
         </button>
       </form>

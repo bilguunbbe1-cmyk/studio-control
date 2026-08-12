@@ -41,4 +41,4 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Viral Pixel Project Control API listening on :${PORT}`));
+app.listen(PORT, () => console.log(`PXL Consulting Project Control API listening on :${PORT}`));

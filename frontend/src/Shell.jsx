@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { LayoutGrid, FolderKanban, ListChecks, Clapperboard, Wallet, Users, Contact2, LogOut, X } from "lucide-react";
-import { ROLE_LABEL } from "./components";
+import { ROLE_LABEL, Avatar } from "./components";
 import { api } from "./api";
 import { ShellContext } from "./shellContext";
 import { usePanels } from "./panels";
@@ -37,11 +37,11 @@ export default function Shell({ user, onLogout }) {
       <div style={{ background: "var(--bg)", minHeight: "100vh", display: "flex" }} className="text-sm">
         <aside style={{ background: "var(--panel)", borderRight: "1px solid var(--line)", width: 224 }} className="shrink-0 flex-col py-5 px-3 hidden md:flex">
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px", marginBottom: 28 }}>
-            <div style={{ background: "var(--gold)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700, fontSize: 12 }} className="plex-mono">
-              VP
+            <div style={{ background: "var(--gold)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 700, fontSize: 11 }} className="plex-mono">
+              PXL
             </div>
             <div>
-              <div style={{ fontWeight: 600, lineHeight: 1.1 }}>Viral Pixel</div>
+              <div style={{ fontWeight: 600, lineHeight: 1.1 }}>PXL Consulting</div>
               <div style={{ color: "var(--muted)", fontSize: 11 }}>Project Control</div>
             </div>
           </div>
@@ -70,9 +70,7 @@ export default function Shell({ user, onLogout }) {
           </nav>
 
           <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: 8, padding: "16px 8px 0", borderTop: "1px solid var(--line)" }}>
-            <div style={{ background: "var(--teal)", width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 600, fontSize: 11 }}>
-              {user.name?.slice(0, 2).toUpperCase() || "ТА"}
-            </div>
+            <Avatar name={user.name} photoUrl={user.photoUrl} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.name}</div>
               <div style={{ color: "var(--muted)", fontSize: 11 }}>{ROLE_LABEL[user.role] || user.role}</div>

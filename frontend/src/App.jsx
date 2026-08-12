@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { api, setToken, hasToken } from "./api";
+import { onEvent } from "./bus";
 import Login from "./Login";
 import Shell from "./Shell";
 import { PanelProvider } from "./panels";
@@ -27,6 +28,10 @@ export default function App() {
       .catch(() => setToken(null))
       .finally(() => setChecking(false));
   }, []);
+
+  useEffect(() => onEvent("me-changed", () => {
+    api.me().then((r) => setUser(r.user)).catch(() => {});
+  }), []);
 
   if (checking) return null;
   if (!user) return <Login onAuthed={setUser} />;

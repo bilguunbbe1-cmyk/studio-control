@@ -69,7 +69,7 @@ export default function Production({ user }) {
       <ErrorBanner message={error} />
 
       {blockers.length > 0 && (
-        <div style={{ background: "#c9613f18", border: "1px solid #c9613f55", borderRadius: 12, padding: 14, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ background: "#fde9eb", border: "1px solid #f6c6cb", borderRadius: 12, padding: 14, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <AlertTriangle size={14} color="var(--rust)" />
             <div>

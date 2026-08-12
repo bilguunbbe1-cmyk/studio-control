@@ -3,7 +3,7 @@ import { Check, X, AlertTriangle, Wallet, Receipt, PlusCircle } from "lucide-rea
 import { api } from "../api";
 import { usePanels } from "../panels";
 import { onEvent } from "../bus";
-import { fmt, fmtM, STATUS_META, Gauge, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
+import { fmt, fmtM, STATUS_META, BADGE_TINTS, Gauge, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
 import Production from "./Production";
 
@@ -77,7 +77,7 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
   return (
     <div>
       {data.alert && (
-        <div style={{ background: "#c9613f18", border: "1px solid #c9613f55", borderRadius: 12, padding: 16, marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ background: "#fde9eb", border: "1px solid #f6c6cb", borderRadius: 12, padding: 16, marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div style={{ fontWeight: 600, fontSize: 13, color: "var(--rust)", marginBottom: 4 }}>{data.alert.title}</div>
             <div style={{ color: "var(--muted)", fontSize: 12 }}>{data.alert.subtitle}</div>
@@ -117,7 +117,7 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
                   </span>
                   <span className="plex-mono">{p.progressPct}%</span>
                   <span className="plex-mono">{p.budgetSpentPct}% зарцуулсан</span>
-                  <span><span style={{ background: `${meta.color}22`, color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}>{meta.label}</span></span>
+                  <span><span style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}>{meta.label}</span></span>
                 </button>
               );
             })}
@@ -148,10 +148,10 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                      <button onClick={() => decide(d.id, d.kind, "approved")} style={{ background: "#4fa9a022", color: "var(--teal)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 6 }}>
+                      <button onClick={() => decide(d.id, d.kind, "approved")} style={{ background: BADGE_TINTS["var(--teal)"], color: "var(--teal)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 6 }}>
                         <Check size={12} /> Зөвшөөрөх
                       </button>
-                      <button onClick={() => decide(d.id, d.kind, "rejected")} style={{ background: "#c9613f22", color: "var(--rust)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 6 }}>
+                      <button onClick={() => decide(d.id, d.kind, "rejected")} style={{ background: BADGE_TINTS["var(--rust)"], color: "var(--rust)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "6px 0", borderRadius: 6 }}>
                         <X size={12} /> Татгалзах
                       </button>
                     </div>
@@ -234,7 +234,7 @@ function ManagerOverview({ data, onOpenProject, onPlanned }) {
         <StatCard label="Миний төсөл" value={data.stats.myProjectsCount} sub={`${data.stats.myProjectsLateCount} хоцорсон`} />
         <StatCard label="Өнөөдөр дуусах" value={data.stats.dueTodayCount} sub={`${data.stats.dueTodayUrgentCount} яаралтай`} accent="var(--rust)" />
         <StatCard label="Client approval" value={data.stats.clientApprovalCount} sub={`${data.stats.clientApprovalOldCount} нь 2+ өдөр`} />
-        <StatCard label="Төсвийн эрсдэл" value={`${data.stats.budgetRiskPct}%`} sub="зарцуулсан" accent="var(--gold)" />
+        <StatCard label="Төсвийн эрсдэл" value={`${data.stats.budgetRiskPct}%`} sub="зарцуулсан" accent="var(--amber)" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
@@ -246,7 +246,7 @@ function ManagerOverview({ data, onOpenProject, onPlanned }) {
               const meta = STATUS_META[p.status];
               return (
                 <button key={p.id} onClick={() => onOpenProject(p.id)} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 16, textAlign: "left", width: "100%" }}>
-                  <span style={{ background: `${meta.color}22`, color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, flexShrink: 0 }}>{meta.label}</span>
+                  <span style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6, flexShrink: 0 }}>{meta.label}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, fontSize: 13 }}>{p.name}</div>
                     <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.nextAction ? `Дараагийн ажил: ${p.nextAction}` : "Дараагийн ажил алга"}</div>

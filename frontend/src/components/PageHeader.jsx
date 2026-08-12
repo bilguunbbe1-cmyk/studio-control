@@ -21,7 +21,7 @@ export default function PageHeader({ title, subtitle }) {
         {canManage && (
           <button
             onClick={openNewProject}
-            style={{ background: "var(--gold)", color: "#12141c", display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
+            style={{ background: "var(--gold)", color: "#ffffff", display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
           >
             <Plus size={14} /> Шинэ төсөл
           </button>

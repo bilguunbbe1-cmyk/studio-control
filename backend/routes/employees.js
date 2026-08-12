@@ -47,6 +47,7 @@ function shapeListItem(e) {
     phone: e.phone,
     hireDate: e.hire_date,
     birthday: e.birthday,
+    photoUrl: e.photo_url ? `/uploads/${e.photo_url}` : null,
     contractStatus: e.contract_status,
     nextLeaveCycleDate: leaveCycle ? leaveCycle.next_cycle_date : null,
     leaveStatus: leaveCycle ? leaveCycle.status : "Төлөвлөөгүй",
@@ -57,7 +58,16 @@ function shapeListItem(e) {
 function shapeListItemForViewer(req, e) {
   const full = shapeListItem(e);
   if (canSeeFull(req, e.id)) return full;
-  return { id: full.id, code: full.code, name: full.name, title: full.title };
+  return {
+    id: full.id,
+    code: full.code,
+    name: full.name,
+    title: full.title,
+    department: full.department,
+    phone: full.phone,
+    birthday: full.birthday,
+    photoUrl: full.photoUrl,
+  };
 }
 
 // ---- Employees list ----
@@ -275,6 +285,17 @@ router.post("/employees/:id/files", CEO_ONLY, upload.single("file"), (req, res) 
     .prepare("INSERT INTO files (owner_type, owner_id, category, filename, stored_path, size_bytes) VALUES ('employee',?,?,?,?,?)")
     .run(req.params.id, category, req.file.originalname, req.file.filename, req.file.size);
   res.status(201).json({ id: info.lastInsertRowid, category, filename: req.file.originalname, sizeBytes: req.file.size });
+});
+
+router.post("/employees/:id/photo", upload.single("photo"), (req, res) => {
+  const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
+  if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
+  if (!(req.user.role === "ceo" || isSelf(req, e.id))) {
+    return res.status(403).json({ error: "Танд энэ зургийг солих эрх байхгүй" });
+  }
+  if (!req.file) return res.status(400).json({ error: "photo шаардлагатай" });
+  db.prepare("UPDATE employees SET photo_url = ? WHERE id = ?").run(req.file.filename, e.id);
+  res.json({ photoUrl: `/uploads/${req.file.filename}` });
 });
 
 module.exports = router;

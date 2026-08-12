@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, Check, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, fmtM, useToast, EmptyState } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState } from "../components";
 import PaymentRequestModal from "./PaymentRequestModal";
 
 const TABS = [
@@ -283,7 +283,7 @@ function EditProjectForm({ project, onCancel, onSave }) {
               dueDate: form.dueDate || null,
             })
           }
-          style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
+          style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
         >
           Хадгалах
         </button>
@@ -478,7 +478,7 @@ function ReviewItemRow({ r }) {
         <div style={{ fontSize: 12, fontWeight: 500 }}>{r.title}</div>
         <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{r.version} · {r.editor || "—"}</div>
       </div>
-      <Badge color={r.reviewStatus === "approved" ? "var(--teal)" : "var(--gold)"}>{REVIEW_STATUS_LABEL[r.reviewStatus] || r.reviewStatus}</Badge>
+      <Badge color={r.reviewStatus === "approved" ? "var(--teal)" : "var(--amber)"}>{REVIEW_STATUS_LABEL[r.reviewStatus] || r.reviewStatus}</Badge>
     </div>
   );
 }
@@ -524,7 +524,7 @@ function CostItemRow({ c, onReceipt }) {
       <select
         value={c.receiptStatus}
         onChange={(e) => onReceipt(c.id, e.target.value)}
-        style={{ background: `${meta.color}22`, color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
+        style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
       >
         {Object.entries(RECEIPT_META).map(([k, v]) => (
           <option key={k} value={k}>{v.label}</option>

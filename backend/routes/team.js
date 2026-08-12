@@ -19,6 +19,7 @@ router.get("/team", (req, res) => {
       code: e.code,
       name: e.name,
       title: e.title,
+      photoUrl: e.photo_url ? `/uploads/${e.photo_url}` : null,
       workloadPct: e.workload_pct,
       activeTasksCount: activeTasks,
       overdueCount: overdueTasks,

@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+export const API_BASE = BASE_URL;
 
 function getToken() {
   return localStorage.getItem("sc_token");
@@ -95,6 +96,11 @@ export const api = {
   planEmployeeLeave: (id) => request(`/api/employees/${id}/leave/plan`, { method: "POST" }),
   registerLeave: (id, payload) => request(`/api/employees/${id}/leave`, { method: "POST", body: payload }),
   addContract: (id, payload) => request(`/api/employees/${id}/contracts`, { method: "POST", body: payload }),
+  uploadEmployeePhoto: (id, file) => {
+    const form = new FormData();
+    form.append("photo", file);
+    return request(`/api/employees/${id}/photo`, { method: "POST", body: form, isForm: true });
+  },
   getEmployeeFiles: (id) => request(`/api/employees/${id}/files`),
   uploadEmployeeFile: (id, category, file) => {
     const form = new FormData();

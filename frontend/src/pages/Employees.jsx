@@ -3,7 +3,7 @@ import { Cake, Sun, FileText, Wallet } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
 import { onEvent } from "../bus";
-import { ErrorBanner, EmptyState, useToast, FieldRow } from "../components";
+import { ErrorBanner, EmptyState, useToast, FieldRow, Avatar } from "../components";
 import PageHeader from "../components/PageHeader";
 
 function nextUpcomingBirthday(employees) {
@@ -94,7 +94,7 @@ export default function Employees({ user }) {
         {employees.map((e, i) => (
           <button key={e.id} onClick={() => openEmployee(e.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ background: "var(--teal)", width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{e.name[0]}</span>
+              <Avatar name={e.name} photoUrl={e.photoUrl} size={26} />
               <span>
                 <div style={{ fontWeight: 500 }}>{e.name}</div>
                 <div style={{ color: "var(--muted)", fontSize: 11 }}>{e.title}</div>
@@ -192,7 +192,7 @@ function NewEmployeeModal({ onClose, onCreated }) {
         {error && <div style={{ color: "var(--rust)", fontSize: 11, marginTop: 10 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
           <button type="button" onClick={onClose} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
-          <button type="submit" style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Нэмэх</button>
+          <button type="submit" style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Нэмэх</button>
         </div>
       </form>
     </div>

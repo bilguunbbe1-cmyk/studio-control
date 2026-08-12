@@ -58,7 +58,7 @@ export default function Finance() {
           <StatCard label="Гэрээт орлого" value={fmtM(summary.contractedRevenue)} sub="НӨАТ-гүй" accent="var(--teal)" />
           <StatCard label="Орж ирсэн" value={fmtM(summary.received)} sub={`${Math.round((summary.received / summary.contractedRevenue) * 1000) / 10}% collection`} />
           <StatCard label="Авлага" value={fmtM(summary.receivable)} sub={`${fmtM(summary.overdueReceivable)} overdue`} accent="var(--rust)" />
-          <StatCard label="Баримтгүй зардал" value={fmtM(summary.undocumentedExpenses)} sub={`${summary.undocumentedGapPct}% gap`} accent="var(--gold)" />
+          <StatCard label="Баримтгүй зардал" value={fmtM(summary.undocumentedExpenses)} sub={`${summary.undocumentedGapPct}% gap`} accent="var(--amber)" />
         </div>
       )}
 
@@ -77,7 +77,7 @@ export default function Finance() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="plex-mono" style={{ fontWeight: 700 }}>₮{fmt(r.amount)}</span>
-                  <button onClick={() => pay(r.id)} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                  <button onClick={() => pay(r.id)} style={{ background: "var(--gold)", color: "#ffffff", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6, whiteSpace: "nowrap" }}>
                     Илгээсэн ✓
                   </button>
                 </div>
