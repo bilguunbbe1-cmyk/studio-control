@@ -178,7 +178,7 @@ function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div style={{ color: "var(--muted)", fontSize: 12 }}>
-          {employee.title} · {employee.city} · {employee.hireDate}-нд ажилд орсон
+          {employee.title} · {employee.city}{employee.hireDate ? ` · ${employee.hireDate}-нд ажилд орсон` : ""}{employee.phone ? ` · ${employee.phone}` : ""}
         </div>
         {isCeo && (
           <button onClick={onEdit} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, flexShrink: 0 }}>
@@ -196,7 +196,7 @@ function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit }) {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
-        <Metric label="Ажилласан хугацаа" value={employee.tenure} sub={`${employee.hireDate}-ээс`} />
+        <Metric label="Ажилласан хугацаа" value={employee.tenure || "—"} sub={employee.hireDate ? `${employee.hireDate}-ээс` : "Огноо бүртгэгдээгүй"} />
         <Metric label="Дараагийн цалин" value={employee.salary.nextDisbursementDate || "—"} sub="Урьдчилгаа" />
         <Metric label="Амралтын цикл" value={employee.leave.nextCycleDate || "—"} sub={employee.leave.status} />
       </div>

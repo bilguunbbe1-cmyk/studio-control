@@ -22,8 +22,10 @@ CREATE TABLE IF NOT EXISTS employees (
   name TEXT NOT NULL,
   title TEXT NOT NULL,
   city TEXT,
-  hire_date TEXT NOT NULL,
+  hire_date TEXT,
   birthday TEXT,
+  phone TEXT,
+  department TEXT,
   contract_status TEXT NOT NULL DEFAULT 'Гэрээтэй',
   workload_pct INTEGER NOT NULL DEFAULT 0,
   base_salary_amount REAL NOT NULL DEFAULT 0,
@@ -214,155 +216,58 @@ CREATE TABLE IF NOT EXISTS notifications (
 const employeeCount = db.prepare("SELECT COUNT(*) AS c FROM employees").get().c;
 
 if (employeeCount === 0) {
-  // ---- Users (auth accounts, one per role) ----
+  // ---- Users (real auth accounts — email is the username) ----
   const insertUser = db.prepare(
     "INSERT INTO users (email, password_hash, name, role) VALUES (?,?,?,?)"
   );
-  const ceoUserId = insertUser.run(
-    "demo@studio.mn",
-    bcrypt.hashSync("demo1234", 10),
-    "Пүрэвцэрэн",
-    "ceo"
-  ).lastInsertRowid;
-  const managerUserId = insertUser.run(
-    "manager@studio.mn",
-    bcrypt.hashSync("manager1234", 10),
-    "Гэрэлээ",
-    "manager"
-  ).lastInsertRowid;
-  const productionUserId = insertUser.run(
-    "production@studio.mn",
-    bcrypt.hashSync("production1234", 10),
-    "Тэмүүлэн",
-    "production"
-  ).lastInsertRowid;
 
-  // ---- Employees (the 6-person studio roster) ----
+  // ---- Employees (real studio roster). Account dept -> manager tier,
+  // Production dept -> production tier. Contract/leave/payroll are left
+  // unrecorded (no fabricated HR data for real people) — the UI already
+  // shows a graceful "not on file" state for those.
   const insertEmployee = db.prepare(
-    `INSERT INTO employees (code, name, title, city, hire_date, birthday, contract_status, workload_pct, base_salary_amount, user_id)
-     VALUES (@code, @name, @title, @city, @hire_date, @birthday, @contract_status, @workload_pct, @base_salary_amount, @user_id)`
+    `INSERT INTO employees (code, name, title, city, hire_date, birthday, phone, department, contract_status, workload_pct, base_salary_amount, user_id)
+     VALUES (@code, @name, @title, @city, @hire_date, @birthday, @phone, @department, @contract_status, @workload_pct, @base_salary_amount, @user_id)`
+  );
+  const insertLeaveCycle = db.prepare(
+    `INSERT INTO leave_cycles (employee_id, cycle_length_months, next_cycle_date, status) VALUES (?,6,NULL,'Төлөвлөөгүй')`
   );
 
   const employeeSeed = [
-    {
-      code: "EMP-004",
-      name: "Гэрэлээ",
-      title: "Project Manager",
-      city: "Улаанбаатар",
-      hire_date: "2025-12-01",
-      birthday: null,
-      contract_status: "Гэрээтэй",
-      workload_pct: 84,
-      base_salary_amount: 3200000,
-      user_id: managerUserId,
-      contract: { number: "VP-HR-2025-014", status: "Хүчинтэй", next_review: "2026-12-01" },
-      leave_cycle: "2026-06-01",
-      advance_pct: 42.6,
-    },
-    {
-      code: "EMP-002",
-      name: "Номин",
-      title: "Project Manager",
-      city: "Улаанбаатар",
-      hire_date: "2024-08-12",
-      birthday: "09-18",
-      contract_status: "Гэрээ шинэчлэх",
-      workload_pct: 62,
-      base_salary_amount: 3000000,
-      user_id: null,
-      contract: { number: "VP-HR-2024-002", status: "Сунгах шаардлагатай", next_review: "2026-08-12" },
-      leave_cycle: "2026-08-12",
-      advance_pct: 40,
-    },
-    {
-      code: "EMP-003",
-      name: "Тэмүүлэн",
-      title: "Editor",
-      city: "Улаанбаатар",
-      hire_date: "2026-02-03",
-      birthday: "11-04",
-      contract_status: "Гэрээтэй",
-      workload_pct: 91,
-      base_salary_amount: 2600000,
-      user_id: productionUserId,
-      contract: { number: "VP-HR-2026-001", status: "Хүчинтэй", next_review: "2027-02-03" },
-      leave_cycle: "2026-08-03",
-      advance_pct: 45,
-    },
-    {
-      code: "EMP-005",
-      name: "Ану",
-      title: "Designer",
-      city: "Улаанбаатар",
-      hire_date: "2025-10-20",
-      birthday: "02-12",
-      contract_status: "Гэрээтэй",
-      workload_pct: 74,
-      base_salary_amount: 2400000,
-      user_id: null,
-      contract: { number: "VP-HR-2025-011", status: "Хүчинтэй", next_review: "2026-10-20" },
-      leave_cycle: "2026-10-20",
-      advance_pct: 40,
-    },
-    {
-      code: "EMP-006",
-      name: "Билгүүн",
-      title: "Production",
-      city: "Улаанбаатар",
-      hire_date: "2026-01-15",
-      birthday: "07-28",
-      contract_status: "Мэдээлэл дутуу",
-      workload_pct: 58,
-      base_salary_amount: 2000000,
-      user_id: null,
-      contract: null,
-      leave_cycle: "2026-07-15",
-      advance_pct: 40,
-    },
-    {
-      code: "EMP-001",
-      name: "Анужин",
-      title: "Media Manager",
-      city: "Улаанбаатар",
-      hire_date: "2025-06-10",
-      birthday: "12-01",
-      contract_status: "Гэрээтэй",
-      workload_pct: 69,
-      base_salary_amount: 2800000,
-      user_id: null,
-      contract: { number: "VP-HR-2025-006", status: "Хүчинтэй", next_review: "2026-06-10" },
-      leave_cycle: "2026-06-10",
-      advance_pct: 40,
-    },
+    { code: "EMP-001", name: "Пүрэвцэрэн", title: "Chief Executive Officer", department: "Account", email: "Purewtseren@pxl.mn", password: "10203040", birthday: "08-31", phone: "86869463", role: "ceo", workload_pct: 60 },
+    { code: "EMP-002", name: "Гэрэлцэцэг", title: "Account manager", department: "Account", email: "Gereltsetseg@pxl.mn", password: "11223344", birthday: "09-22", phone: "80249191", role: "manager", workload_pct: 78 },
+    { code: "EMP-003", name: "Сарнай", title: "Account manager", department: "Account", email: "Sarnai@pxl.mn", password: "22334455", birthday: "03-28", phone: "99087714", role: "manager", workload_pct: 70 },
+    { code: "EMP-004", name: "Билгүүн", title: "Associate manager", department: "Account", email: "bilguunbbe1@gmail.com", password: "33445566", birthday: null, phone: "99179230", role: "manager", workload_pct: 65 },
+    { code: "EMP-005", name: "Мөнхчимэг", title: "Operations manager", department: "Account", email: "munkhchimeg@pxl.mn", password: "44556677", birthday: "12-13", phone: "89914909", role: "manager", workload_pct: 72 },
+    { code: "EMP-006", name: "Түвшинтөгс", title: "Head of production", department: "Production", email: "quitmendez9917@gmail.com", password: "55667788", birthday: null, phone: "85777010", role: "production", workload_pct: 85 },
+    { code: "EMP-007", name: "Жамьян", title: "Video grapher/editor", department: "Production", email: "jaminadilbish@gmail.com", password: "66778899", birthday: null, phone: "99979768", role: "production", workload_pct: 80 },
+    { code: "EMP-008", name: "Амар", title: "Video grapher/editor", department: "Production", email: "amaraa.byambajav@gmail.com", password: "77889911", birthday: "08-13", phone: "99182406", role: "production", workload_pct: 82 },
+    { code: "EMP-009", name: "Энгүүн", title: "Graphic designer", department: "Production", email: null, password: null, birthday: null, phone: "89559589", role: "production", workload_pct: 55 },
   ];
-
-  const insertContract = db.prepare(
-    `INSERT INTO contracts (employee_id, contract_number, start_date, next_review_date, status)
-     VALUES (?,?,?,?,?)`
-  );
-  const insertLeaveCycle = db.prepare(
-    `INSERT INTO leave_cycles (employee_id, cycle_length_months, next_cycle_date, status) VALUES (?,6,?,'Төлөвлөөгүй')`
-  );
-  const insertPayroll = db.prepare(
-    `INSERT INTO payroll_entries (employee_id, date, label, status, amount, pct_of_base, is_advance) VALUES (?,?,?,?,?,?,?)`
-  );
 
   const employeeIds = {};
   for (const e of employeeSeed) {
-    const id = insertEmployee.run(e).lastInsertRowid;
+    const userId = e.email
+      ? insertUser.run(e.email, bcrypt.hashSync(e.password, 10), e.name, e.role).lastInsertRowid
+      : null;
+
+    const id = insertEmployee.run({
+      code: e.code,
+      name: e.name,
+      title: e.title,
+      city: "Улаанбаатар",
+      hire_date: null,
+      birthday: e.birthday,
+      phone: e.phone,
+      department: e.department,
+      contract_status: "Мэдээлэл дутуу",
+      workload_pct: e.workload_pct,
+      base_salary_amount: 0,
+      user_id: userId,
+    }).lastInsertRowid;
     employeeIds[e.name] = id;
 
-    if (e.contract) {
-      insertContract.run(id, e.contract.number, e.hire_date, e.contract.next_review, e.contract.status);
-    }
-    insertLeaveCycle.run(id, e.leave_cycle);
-
-    const advanceAmount = Math.round((e.base_salary_amount * e.advance_pct) / 100);
-    const balanceAmount = e.base_salary_amount - advanceAmount;
-    insertPayroll.run(id, "2026-08-05", "7 сарын үлдэгдэл", "Олгосон", balanceAmount, null, 0);
-    insertPayroll.run(id, "2026-08-20", "8 сарын урьдчилгаа", "Төлөвлөсөн", advanceAmount, e.advance_pct, 1);
-    insertPayroll.run(id, "2026-09-05", "8 сарын үлдэгдэл", "Төлөвлөсөн", balanceAmount, null, 0);
-    insertPayroll.run(id, "2026-09-20", "9 сарын урьдчилгаа", "Төлөвлөсөн", advanceAmount, e.advance_pct, 1);
+    insertLeaveCycle.run(id);
   }
 
   // ---- Projects ----
@@ -376,8 +281,8 @@ if (employeeCount === 0) {
       code: "VP-26018",
       name: "Баясал — 8 сарын контент",
       client: "KHAN TUGUL",
-      lead: "Гэрэлээ",
-      owner: "Гэрэлээ",
+      lead: "Гэрэлцэцэг",
+      owner: "Гэрэлцэцэг",
       contract_amount: 32000000,
       spent: 14400000,
       progress_pct: 68,
@@ -391,8 +296,8 @@ if (employeeCount === 0) {
       code: "VP-26021",
       name: "NURA Podcast Season 2",
       client: "NURA Mongolia",
-      lead: "Номин",
-      owner: "Номин",
+      lead: "Сарнай",
+      owner: "Сарнай",
       contract_amount: 24000000,
       spent: 7100000,
       progress_pct: 42,
@@ -406,8 +311,8 @@ if (employeeCount === 0) {
       code: "VP-26023",
       name: "Belmonte TVC",
       client: "Belmonte Residence",
-      lead: "Гэрэлээ",
-      owner: "Гэрэлээ",
+      lead: "Гэрэлцэцэг",
+      owner: "Гэрэлцэцэг",
       contract_amount: 48000000,
       spent: 18600000,
       progress_pct: 31,
@@ -421,8 +326,8 @@ if (employeeCount === 0) {
       code: "VP-26026",
       name: "Hamilton Office Campaign",
       client: "Hamilton",
-      lead: "Анужин",
-      owner: "Анужин",
+      lead: "Мөнхчимэг",
+      owner: "Мөнхчимэг",
       contract_amount: 18000000,
       spent: 3300000,
       progress_pct: 22,
@@ -514,20 +419,20 @@ if (employeeCount === 0) {
 
   const REVIEW_ITEMS_BY_PROJECT = {
     "VP-26018": [
-      ["Reel 04", "v03", "Тэмүүлэн", "editing"],
-      ["Poster 12", "v02", "Ану", "client_review"],
-      ["Reel 03", "FINAL", "Тэмүүлэн", "approved"],
+      ["Reel 04", "v03", "Амар", "editing"],
+      ["Poster 12", "v02", "Энгүүн", "client_review"],
+      ["Reel 03", "FINAL", "Амар", "approved"],
     ],
     "VP-26021": [
-      ["NURA intro", "v01", "Номин", "client_review"],
-      ["Episode 01", "v04", "Тэмүүлэн", "editing"],
+      ["NURA intro", "v01", "Сарнай", "client_review"],
+      ["Episode 01", "v04", "Амар", "editing"],
     ],
     "VP-26023": [
-      ["Belmonte teaser", "v03", "Номин", "editing"],
-      ["Belmonte main TVC", "v01", "Тэмүүлэн", "editing"],
+      ["Belmonte teaser", "v03", "Сарнай", "editing"],
+      ["Belmonte main TVC", "v01", "Амар", "editing"],
     ],
     "VP-26026": [
-      ["Hamilton key visual", "v02", "Ану", "approved"],
+      ["Hamilton key visual", "v02", "Энгүүн", "approved"],
     ],
   };
 
@@ -577,30 +482,30 @@ if (employeeCount === 0) {
 
   const taskSeed = [
     // Миний ажил (spec §5)
-    { project: "VP-26018", title: "Reel 04 rough edit", assignee: "Тэмүүлэн", status: "editing", stage: "edit", version: "v03", due_date: "2026-08-11", due_time: "18:00" },
-    { project: "VP-26023", title: "TVC shot list батлуулах", assignee: "Гэрэлээ", status: "awaiting_client", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-11", due_time: "15:00" },
-    { project: "VP-26021", title: "Podcast set-ийн call sheet", assignee: "Номин", status: "editing", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-12", due_time: "11:00" },
-    { project: "VP-26018", title: "Poster 12 internal review", assignee: "Ану", status: "internal_review", stage: "client_review", due_date: "2026-08-12" },
-    { project: "VP-26026", title: "Media plan final", assignee: "Анужин", status: "not_started", stage: "final", due_date: "2026-08-14" },
+    { project: "VP-26018", title: "Reel 04 rough edit", assignee: "Амар", status: "editing", stage: "edit", version: "v03", due_date: "2026-08-11", due_time: "18:00" },
+    { project: "VP-26023", title: "TVC shot list батлуулах", assignee: "Гэрэлцэцэг", status: "awaiting_client", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-11", due_time: "15:00" },
+    { project: "VP-26021", title: "Podcast set-ийн call sheet", assignee: "Сарнай", status: "editing", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-12", due_time: "11:00" },
+    { project: "VP-26018", title: "Poster 12 internal review", assignee: "Энгүүн", status: "internal_review", stage: "client_review", due_date: "2026-08-12" },
+    { project: "VP-26026", title: "Media plan final", assignee: "Мөнхчимэг", status: "not_started", stage: "final", due_date: "2026-08-14" },
 
     // Additional kanban cards (spec §6) to round out the 6-stage board
-    { project: "VP-26023", title: "Belmonte shot list", assignee: "Тэмүүлэн", status: "not_started", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-12" },
-    { project: "VP-26018", title: "Баясал location check", assignee: "Тэмүүлэн", status: "not_started", stage: "ready_to_shoot", checklist_done: 8, checklist_total: 8, due_date: "2026-08-12" },
-    { project: "VP-26021", title: "Hamilton interview", assignee: "Номин", status: "not_started", stage: "ready_to_shoot", checklist_done: 8, checklist_total: 8, due_date: "2026-08-12" },
-    { project: "VP-26021", title: "NURA Episode 01", assignee: "Тэмүүлэн", status: "editing", stage: "shooting", due_date: "2026-08-12" },
-    { project: "VP-26023", title: "Belmonte teaser", assignee: "Номин", status: "editing", stage: "edit", version: "v03" },
-    { project: "VP-26021", title: "NURA intro", assignee: "Номин", status: "awaiting_client", stage: "client_review", due_date: "2026-08-12" },
-    { project: "VP-26026", title: "Hamilton key visual", assignee: "Тэмүүлэн", status: "done", stage: "final", due_date: "2026-08-12" },
-    { project: "VP-26018", title: "Баясал Reel 02", assignee: "Номин", status: "done", stage: "final", due_date: "2026-08-12" },
+    { project: "VP-26023", title: "Belmonte shot list", assignee: "Амар", status: "not_started", stage: "pre_production", checklist_done: 6, checklist_total: 8, due_date: "2026-08-12" },
+    { project: "VP-26018", title: "Баясал location check", assignee: "Амар", status: "not_started", stage: "ready_to_shoot", checklist_done: 8, checklist_total: 8, due_date: "2026-08-12" },
+    { project: "VP-26021", title: "Hamilton interview", assignee: "Сарнай", status: "not_started", stage: "ready_to_shoot", checklist_done: 8, checklist_total: 8, due_date: "2026-08-12" },
+    { project: "VP-26021", title: "NURA Episode 01", assignee: "Амар", status: "editing", stage: "shooting", due_date: "2026-08-12" },
+    { project: "VP-26023", title: "Belmonte teaser", assignee: "Сарнай", status: "editing", stage: "edit", version: "v03" },
+    { project: "VP-26021", title: "NURA intro", assignee: "Сарнай", status: "awaiting_client", stage: "client_review", due_date: "2026-08-12" },
+    { project: "VP-26026", title: "Hamilton key visual", assignee: "Амар", status: "done", stage: "final", due_date: "2026-08-12" },
+    { project: "VP-26018", title: "Баясал Reel 02", assignee: "Сарнай", status: "done", stage: "final", due_date: "2026-08-12" },
 
     // Extra open work items so each project's "missing tasks" count is non-trivial
-    { project: "VP-26018", title: "Client contract addendum дагалдуулах", assignee: "Гэрэлээ", status: "not_started", due_date: "2026-08-20" },
-    { project: "VP-26018", title: "Урьдчилгаа төлбөр хүлээх", assignee: "Гэрэлээ", status: "awaiting_client", due_date: "2026-08-18" },
-    { project: "VP-26023", title: "Contract addendum шийдвэрлэх", assignee: "Гэрэлээ", status: "not_started", due_date: "2026-08-15" },
-    { project: "VP-26023", title: "Casting сонголт баталгаажуулах", assignee: "Тэмүүлэн", status: "not_started", due_date: "2026-08-16" },
-    { project: "VP-26023", title: "Location fee төлбөр баримтжуулах", assignee: "Гэрэлээ", status: "not_started", due_date: "2026-08-17" },
-    { project: "VP-26023", title: "Post-production timeline batlah", assignee: "Номин", status: "editing", due_date: "2026-08-19" },
-    { project: "VP-26026", title: "Оффисын зураг авалт төлөвлөх", assignee: "Анужин", status: "not_started", due_date: "2026-08-22" },
+    { project: "VP-26018", title: "Client contract addendum дагалдуулах", assignee: "Гэрэлцэцэг", status: "not_started", due_date: "2026-08-20" },
+    { project: "VP-26018", title: "Урьдчилгаа төлбөр хүлээх", assignee: "Гэрэлцэцэг", status: "awaiting_client", due_date: "2026-08-18" },
+    { project: "VP-26023", title: "Contract addendum шийдвэрлэх", assignee: "Гэрэлцэцэг", status: "not_started", due_date: "2026-08-15" },
+    { project: "VP-26023", title: "Casting сонголт баталгаажуулах", assignee: "Амар", status: "not_started", due_date: "2026-08-16" },
+    { project: "VP-26023", title: "Location fee төлбөр баримтжуулах", assignee: "Гэрэлцэцэг", status: "not_started", due_date: "2026-08-17" },
+    { project: "VP-26023", title: "Post-production timeline batlah", assignee: "Сарнай", status: "editing", due_date: "2026-08-19" },
+    { project: "VP-26026", title: "Оффисын зураг авалт төлөвлөх", assignee: "Мөнхчимэг", status: "not_started", due_date: "2026-08-22" },
   ];
 
   taskSeed.forEach((t) => {
@@ -638,10 +543,10 @@ if (employeeCount === 0) {
   const insertDeadline = db.prepare(
     "INSERT INTO deadlines (title, project_id, project, person, due_date) VALUES (?,?,?,?,?)"
   );
-  insertDeadline.run("Reel 04 rough edit", projectIds["VP-26018"], "Баясал", "Тэмүүлэн", "2026-08-11");
-  insertDeadline.run("TVC shot list батлуулах", projectIds["VP-26023"], "Belmonte", "Гэрэлээ", "2026-08-11");
-  insertDeadline.run("Podcast set-ийн call sheet", projectIds["VP-26021"], "NURA", "Номин", "2026-08-12");
-  insertDeadline.run("Poster 12 internal review", projectIds["VP-26018"], "Баясал", "Ану", "2026-08-13");
+  insertDeadline.run("Reel 04 rough edit", projectIds["VP-26018"], "Баясал", "Амар", "2026-08-11");
+  insertDeadline.run("TVC shot list батлуулах", projectIds["VP-26023"], "Belmonte", "Гэрэлцэцэг", "2026-08-11");
+  insertDeadline.run("Podcast set-ийн call sheet", projectIds["VP-26021"], "NURA", "Сарнай", "2026-08-12");
+  insertDeadline.run("Poster 12 internal review", projectIds["VP-26018"], "Баясал", "Энгүүн", "2026-08-13");
 }
 
 module.exports = db;

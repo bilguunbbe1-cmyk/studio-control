@@ -88,11 +88,11 @@ export default function Employees({ user }) {
       </div>
 
       <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
-          <span>АЖИЛТАН</span><span>АЖИЛД ОРСОН</span><span>ТӨРСӨН ӨДӨР</span><span>ДАРААГИЙН АМРАЛТ</span><span>ГЭРЭЭ</span>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
+          <span>АЖИЛТАН</span><span>ХЭЛТЭС</span><span>ТӨРСӨН ӨДӨР</span><span>УТАС</span><span>ДАРААГИЙН АМРАЛТ</span><span>ГЭРЭЭ</span>
         </div>
         {employees.map((e, i) => (
-          <button key={e.id} onClick={() => openEmployee(e.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
+          <button key={e.id} onClick={() => openEmployee(e.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ background: "var(--teal)", width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#12141c", fontWeight: 700, fontSize: 11, flexShrink: 0 }}>{e.name[0]}</span>
               <span>
@@ -100,8 +100,9 @@ export default function Employees({ user }) {
                 <div style={{ color: "var(--muted)", fontSize: 11 }}>{e.title}</div>
               </span>
             </span>
-            <span className="plex-mono">{e.hireDate || "—"}</span>
-            <span>{e.hireDate ? e.birthday || <span style={{ color: "var(--rust)" }}>Дутуу</span> : "—"}</span>
+            <span>{e.department || "—"}</span>
+            <span>{e.birthday || "—"}</span>
+            <span className="plex-mono">{e.phone || "—"}</span>
             <span className="plex-mono">{e.nextLeaveCycleDate || "—"}</span>
             <span style={{ color: e.contractStatus === "Гэрээтэй" ? "var(--teal)" : e.contractStatus ? "var(--rust)" : "var(--muted)", fontWeight: 600 }}>{e.contractStatus || "—"}</span>
           </button>

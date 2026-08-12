@@ -10,6 +10,7 @@ router.use(requireAuth);
 const CEO_ONLY = requireRole("ceo");
 
 function tenureLabel(hireDate) {
+  if (!hireDate) return null;
   const start = new Date(hireDate);
   const now = new Date();
   let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
@@ -39,6 +40,8 @@ function shapeListItem(e) {
     code: e.code,
     name: e.name,
     title: e.title,
+    department: e.department,
+    phone: e.phone,
     hireDate: e.hire_date,
     birthday: e.birthday,
     contractStatus: e.contract_status,
