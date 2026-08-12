@@ -4,11 +4,13 @@ import { api } from "../api";
 import { usePanels } from "../panels";
 import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
+import NewKanbanTaskModal from "../components/NewKanbanTaskModal";
 
 export default function Production({ user }) {
   const [tasks, setTasks] = useState([]);
   const [blockers, setBlockers] = useState([]);
   const [error, setError] = useState("");
+  const [newTaskStage, setNewTaskStage] = useState(null);
   const toast = useToast();
   const { openProject } = usePanels();
   const canManage = user.role === "ceo" || user.role === "manager";
@@ -50,19 +52,6 @@ export default function Production({ user }) {
     try {
       await api.resolveBlocker(id);
       toast("Blocker шийдэгдлээ");
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function addTask(stage) {
-    const title = window.prompt("Ажлын нэр:");
-    if (!title) return;
-    const projectId = tasks[0]?.projectId;
-    if (!projectId) return;
-    try {
-      await api.createTask({ projectId, title, stage });
       load();
     } catch (err) {
       setError(err.message);
@@ -123,7 +112,7 @@ export default function Production({ user }) {
                       Хариуцагч: {t.assignee || "—"}
                       {t.version ? ` · ${t.version}` : t.checklistTotal != null ? ` · Checklist ${t.checklistDone}/${t.checklistTotal}` : t.dueDate ? ` · ${t.dueDate}` : ""}
                     </div>
-                    {canManage && (
+                    {(canManage || canTouch(t)) && (
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
                         {STAGE_ORDER.filter((s) => s !== stage).slice(0, 2).map((s) => (
                           <button key={s} onClick={() => move(t.id, s)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--muted)", fontSize: 9, padding: "3px 6px", borderRadius: 5 }}>
@@ -135,16 +124,23 @@ export default function Production({ user }) {
                   </div>
                 ))}
                 {colTasks.length === 0 && <EmptyState>Хоосон</EmptyState>}
-                {canManage && (
-                  <button onClick={() => addTask(stage)} style={{ background: "transparent", border: "1px dashed var(--line)", color: "var(--muted)", fontSize: 11, padding: "8px 0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                    <Plus size={12} /> Нэмэх
-                  </button>
-                )}
+                <button onClick={() => setNewTaskStage(stage)} style={{ background: "transparent", border: "1px dashed var(--line)", color: "var(--muted)", fontSize: 11, padding: "8px 0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                  <Plus size={12} /> Нэмэх
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {newTaskStage && (
+        <NewKanbanTaskModal
+          stage={newTaskStage}
+          canPickAssignee={canManage}
+          onClose={() => setNewTaskStage(null)}
+          onCreated={load}
+        />
+      )}
     </div>
   );
 }
