@@ -135,15 +135,26 @@ function FilterPill({ active, onClick, label }) {
   );
 }
 
+const LOGIN_ROLE_OPTIONS = [
+  { value: "ceo", label: "CEO" },
+  { value: "manager", label: "Менежер" },
+  { value: "production", label: "Продакшн" },
+];
+
 function NewEmployeeModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: "", title: "", city: "Улаанбаатар", hireDate: "" });
+  const [form, setForm] = useState({ name: "", title: "", city: "Улаанбаатар", department: "", phone: "", hireDate: "" });
+  const [withLogin, setWithLogin] = useState(false);
+  const [login, setLogin] = useState({ email: "", password: "", role: "" });
   const [error, setError] = useState("");
   const toast = useToast();
 
   async function submit(e) {
     e.preventDefault();
     try {
-      await api.createEmployee(form);
+      await api.createEmployee({
+        ...form,
+        ...(withLogin ? { email: login.email, password: login.password, role: login.role } : {}),
+      });
       toast(`${form.name} нэмэгдлээ`);
       onCreated();
       onClose();
@@ -153,15 +164,31 @@ function NewEmployeeModal({ onClose, onCreated }) {
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "#00000099", zIndex: 80 }}>
-      <form onSubmit={submit} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 360 }}>
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "#00000099", zIndex: 80, overflowY: "auto" }}>
+      <form onSubmit={submit} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 360, margin: "20px 0" }}>
         <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 16px" }}>Ажилтан нэмэх</h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <FieldRow label="Нэр" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
           <FieldRow label="Албан тушаал" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
-          <FieldRow label="Хот" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-          <FieldRow label="Ажилд орсон огноо" type="date" value={form.hireDate} onChange={(v) => setForm({ ...form, hireDate: v })} />
+          <FieldRow label="Хэлтэс" value={form.department} onChange={(v) => setForm({ ...form, department: v })} required={false} />
+          <FieldRow label="Утас" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required={false} />
+          <FieldRow label="Хот" value={form.city} onChange={(v) => setForm({ ...form, city: v })} required={false} />
+          <FieldRow label="Ажилд орсон огноо" type="date" value={form.hireDate} onChange={(v) => setForm({ ...form, hireDate: v })} required={false} />
         </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>
+          <input type="checkbox" checked={withLogin} onChange={(e) => setWithLogin(e.target.checked)} />
+          Нэвтрэх эрх өгөх
+        </label>
+
+        {withLogin && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+            <FieldRow label="И-мэйл" type="email" value={login.email} onChange={(v) => setLogin({ ...login, email: v })} />
+            <FieldRow label="Нууц үг" value={login.password} onChange={(v) => setLogin({ ...login, password: v })} />
+            <FieldRow label="Эрх" value={login.role} onChange={(v) => setLogin({ ...login, role: v })} options={LOGIN_ROLE_OPTIONS} />
+          </div>
+        )}
+
         {error && <div style={{ color: "var(--rust)", fontSize: 11, marginTop: 10 }}>{error}</div>}
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
           <button type="button" onClick={onClose} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>

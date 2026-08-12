@@ -19,6 +19,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [grantingLogin, setGrantingLogin] = useState(false);
   const toast = useToast();
   const isCeo = user?.role === "ceo";
 
@@ -46,6 +47,18 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
       await api.updateEmployee(employeeId, payload);
       toast("Хадгалагдлаа");
       setEditing(false);
+      load();
+      emit("employees-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function saveGrantLogin(payload) {
+    try {
+      await api.grantLogin(employeeId, payload);
+      toast("Нэвтрэх эрх нэмэгдлээ");
+      setGrantingLogin(false);
       load();
       emit("employees-changed");
     } catch (err) {
@@ -107,6 +120,8 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
         <div style={{ color: "var(--muted)", fontSize: 12 }}>Ачааллаж байна...</div>
       ) : editing ? (
         <EditEmployeeForm employee={employee} onCancel={() => setEditing(false)} onSave={saveEdit} />
+      ) : grantingLogin ? (
+        <GrantLoginForm employee={employee} onCancel={() => setGrantingLogin(false)} onSave={saveGrantLogin} />
       ) : (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
@@ -134,7 +149,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           {error && <div style={{ color: "var(--rust)", fontSize: 11, marginBottom: 12 }}>{error}</div>}
 
           {!canSeeFull && <EmptyState>Энэ ажилтны дэлгэрэнгүй мэдээлэл зөвхөн тухайн хүн болон CEO-д харагдана.</EmptyState>}
-          {canSeeFull && tab === "general" && <GeneralTab employee={employee} isCeo={isCeo} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} />}
+          {canSeeFull && tab === "general" && <GeneralTab employee={employee} isCeo={isCeo} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} onGrantLogin={() => setGrantingLogin(true)} />}
           {canSeeFull && tab === "contract" && <ContractTab employee={employee} />}
           {canSeeFull && tab === "leave" && <LeaveTab employee={employee} isCeo={isCeo} onPlan={planLeave} />}
           {canSeeFull && tab === "salary" && <SalaryTab employee={employee} />}
@@ -146,18 +161,55 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
 }
 
 function EditEmployeeForm({ employee, onCancel, onSave }) {
-  const [form, setForm] = useState({ name: employee.name, title: employee.title, city: employee.city || "" });
+  const [form, setForm] = useState({
+    name: employee.name,
+    title: employee.title,
+    city: employee.city || "",
+    department: employee.department || "",
+    phone: employee.phone || "",
+    hireDate: employee.hireDate || "",
+    birthday: employee.birthday || "",
+  });
   return (
     <div>
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 16px" }}>Ажилтны мэдээлэл засах</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
         <FieldRow label="Нэр" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
         <FieldRow label="Албан тушаал" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
+        <FieldRow label="Хэлтэс" value={form.department} onChange={(v) => setForm({ ...form, department: v })} required={false} />
         <FieldRow label="Хот" value={form.city} onChange={(v) => setForm({ ...form, city: v })} required={false} />
+        <FieldRow label="Утас" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} required={false} />
+        <FieldRow label="Ажилд орсон огноо" type="date" value={form.hireDate} onChange={(v) => setForm({ ...form, hireDate: v })} required={false} />
+        <FieldRow label="Төрсөн өдөр (MM-DD)" value={form.birthday} onChange={(v) => setForm({ ...form, birthday: v })} required={false} />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
         <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Хадгалах</button>
+      </div>
+    </div>
+  );
+}
+
+const LOGIN_ROLE_OPTIONS = [
+  { value: "ceo", label: "CEO" },
+  { value: "manager", label: "Менежер" },
+  { value: "production", label: "Продакшн" },
+];
+
+function GrantLoginForm({ employee, onCancel, onSave }) {
+  const [form, setForm] = useState({ email: "", password: "", role: "" });
+  return (
+    <div>
+      <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Нэвтрэх эрх өгөх</h2>
+      <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 16 }}>{employee.name}-д нэвтрэх эрх үүсгэнэ.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        <FieldRow label="И-мэйл" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+        <FieldRow label="Нууц үг" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
+        <FieldRow label="Эрх" value={form.role} onChange={(v) => setForm({ ...form, role: v })} options={LOGIN_ROLE_OPTIONS} />
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
+        <button onClick={() => onSave(form)} style={{ background: "var(--gold)", color: "#12141c", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>Үүсгэх</button>
       </div>
     </div>
   );
@@ -173,17 +225,24 @@ function Metric({ label, value, sub }) {
   );
 }
 
-function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit }) {
+function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit, onGrantLogin }) {
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, gap: 8 }}>
         <div style={{ color: "var(--muted)", fontSize: 12 }}>
           {employee.title} · {employee.city}{employee.hireDate ? ` · ${employee.hireDate}-нд ажилд орсон` : ""}{employee.phone ? ` · ${employee.phone}` : ""}
         </div>
         {isCeo && (
-          <button onClick={onEdit} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, flexShrink: 0 }}>
-            Мэдээлэл засах
-          </button>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onClick={onEdit} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
+              Мэдээлэл засах
+            </button>
+            {!employee.hasLogin && (
+              <button onClick={onGrantLogin} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                Нэвтрэх эрх өгөх
+              </button>
+            )}
+          </div>
         )}
       </div>
 

@@ -242,7 +242,7 @@ if (employeeCount === 0) {
     { code: "EMP-006", name: "Түвшинтөгс", title: "Head of production", department: "Production", email: "quitmendez9917@gmail.com", password: "55667788", birthday: null, phone: "85777010", role: "production", workload_pct: 85 },
     { code: "EMP-007", name: "Жамьян", title: "Video grapher/editor", department: "Production", email: "jaminadilbish@gmail.com", password: "66778899", birthday: null, phone: "99979768", role: "production", workload_pct: 80 },
     { code: "EMP-008", name: "Амар", title: "Video grapher/editor", department: "Production", email: "amaraa.byambajav@gmail.com", password: "77889911", birthday: "08-13", phone: "99182406", role: "production", workload_pct: 82 },
-    { code: "EMP-009", name: "Энгүүн", title: "Graphic designer", department: "Production", email: null, password: null, birthday: null, phone: "89559589", role: "production", workload_pct: 55 },
+    { code: "EMP-009", name: "Энгүүн", title: "Graphic designer", department: "Production", email: "enguun123@gmail.com", password: "88990022", birthday: null, phone: "89559589", role: "production", workload_pct: 55 },
   ];
 
   const employeeIds = {};

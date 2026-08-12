@@ -1,8 +1,11 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { upload } = require("../lib/uploads");
 const { EMPLOYEE_FILE_CATEGORIES } = require("../lib/helpers");
+
+const LOGIN_ROLES = ["ceo", "manager", "production"];
 
 const router = express.Router();
 router.use(requireAuth);
@@ -47,6 +50,7 @@ function shapeListItem(e) {
     contractStatus: e.contract_status,
     nextLeaveCycleDate: leaveCycle ? leaveCycle.next_cycle_date : null,
     leaveStatus: leaveCycle ? leaveCycle.status : "Төлөвлөөгүй",
+    hasLogin: !!e.user_id,
   };
 }
 
@@ -72,15 +76,28 @@ router.get("/employees", (req, res) => {
 });
 
 router.post("/employees", CEO_ONLY, (req, res) => {
-  const { name, title, city, hireDate, baseSalaryAmount } = req.body || {};
-  if (!name || !title || !hireDate) return res.status(400).json({ error: "name, title, hireDate шаардлагатай" });
+  const { name, title, city, hireDate, department, phone, email, password, role } = req.body || {};
+  if (!name || !title) return res.status(400).json({ error: "name, title шаардлагатай" });
+
+  let userId = null;
+  if (email) {
+    if (!password || !LOGIN_ROLES.includes(role)) {
+      return res.status(400).json({ error: "Нэвтрэх эрх нэмэхэд password болон зөв role (ceo/manager/production) шаардлагатай" });
+    }
+    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+    if (existing) return res.status(409).json({ error: "Энэ имэйл бүртгэлтэй байна" });
+    userId = db
+      .prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?,?,?,?)")
+      .run(email, bcrypt.hashSync(password, 10), name, role).lastInsertRowid;
+  }
+
   const code = `EMP-${String(100 + db.prepare("SELECT COUNT(*) AS c FROM employees").get().c).slice(-3)}`;
   const info = db
     .prepare(
-      `INSERT INTO employees (code, name, title, city, hire_date, contract_status, workload_pct, base_salary_amount)
-       VALUES (?,?,?,?,?,'Мэдээлэл дутуу',0,?)`
+      `INSERT INTO employees (code, name, title, city, hire_date, department, phone, contract_status, workload_pct, base_salary_amount, user_id)
+       VALUES (?,?,?,?,?,?,?,'Мэдээлэл дутуу',0,0,?)`
     )
-    .run(code, name, title, city || "", hireDate, Number(baseSalaryAmount) || 0);
+    .run(code, name, title, city || "", hireDate || null, department || null, phone || null, userId);
   db.prepare("INSERT INTO leave_cycles (employee_id, cycle_length_months, next_cycle_date, status) VALUES (?,6,NULL,'Төлөвлөөгүй')").run(
     info.lastInsertRowid
   );
@@ -158,13 +175,39 @@ router.get("/employees/:id", (req, res) => {
 router.patch("/employees/:id", CEO_ONLY, (req, res) => {
   const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
   if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
-  const { name, title, city } = req.body || {};
-  db.prepare("UPDATE employees SET name = ?, title = ?, city = ? WHERE id = ?").run(
+  const { name, title, city, hireDate, birthday, phone, department } = req.body || {};
+  db.prepare(
+    "UPDATE employees SET name = ?, title = ?, city = ?, hire_date = ?, birthday = ?, phone = ?, department = ? WHERE id = ?"
+  ).run(
     name ?? e.name,
     title ?? e.title,
     city ?? e.city,
+    hireDate !== undefined ? hireDate || null : e.hire_date,
+    birthday !== undefined ? birthday || null : e.birthday,
+    phone !== undefined ? phone || null : e.phone,
+    department !== undefined ? department || null : e.department,
     e.id
   );
+  res.json(shapeListItem(db.prepare("SELECT * FROM employees WHERE id = ?").get(e.id)));
+});
+
+router.post("/employees/:id/grant-login", CEO_ONLY, (req, res) => {
+  const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
+  if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
+  if (e.user_id) return res.status(400).json({ error: "Энэ ажилтан аль хэдийн нэвтрэх эрхтэй байна" });
+
+  const { email, password, role } = req.body || {};
+  if (!email || !password || !LOGIN_ROLES.includes(role)) {
+    return res.status(400).json({ error: "email, password, role (ceo/manager/production) шаардлагатай" });
+  }
+  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  if (existing) return res.status(409).json({ error: "Энэ имэйл бүртгэлтэй байна" });
+
+  const userId = db
+    .prepare("INSERT INTO users (email, password_hash, name, role) VALUES (?,?,?,?)")
+    .run(email, bcrypt.hashSync(password, 10), e.name, role).lastInsertRowid;
+  db.prepare("UPDATE employees SET user_id = ? WHERE id = ?").run(userId, e.id);
+
   res.json(shapeListItem(db.prepare("SELECT * FROM employees WHERE id = ?").get(e.id)));
 });
 

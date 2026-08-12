@@ -6,24 +6,6 @@ const { JWT_SECRET, requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
-router.post("/register", (req, res) => {
-  const { email, password, name } = req.body || {};
-  if (!email || !password || !name) {
-    return res.status(400).json({ error: "email, password, name шаардлагатай" });
-  }
-  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-  if (existing) return res.status(409).json({ error: "Энэ имэйл бүртгэлтэй байна" });
-
-  const hash = bcrypt.hashSync(password, 10);
-  const info = db
-    .prepare("INSERT INTO users (email, password_hash, name) VALUES (?,?,?)")
-    .run(email, hash, name);
-
-  const user = { id: info.lastInsertRowid, email, name, role: "member" };
-  const token = jwt.sign(user, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user });
-});
-
 router.post("/login", (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: "email, password шаардлагатай" });

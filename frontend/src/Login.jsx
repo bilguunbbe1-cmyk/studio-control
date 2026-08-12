@@ -1,15 +1,8 @@
 import { useState } from "react";
 import { api, setToken } from "./api";
 
-const DEMO_ACCOUNTS = [
-  { role: "CEO", email: "demo@studio.mn", password: "demo1234", color: "var(--gold)" },
-  { role: "Менежер", email: "manager@studio.mn", password: "manager1234", color: "var(--teal)" },
-  { role: "Продакшн", email: "production@studio.mn", password: "production1234", color: "var(--rust)" },
-];
-
 export default function Login({ onAuthed }) {
-  const [mode, setMode] = useState("login"); // 'login' | 'register'
-  const [form, setForm] = useState({ email: "", password: "", name: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,8 +11,7 @@ export default function Login({ onAuthed }) {
     setError("");
     setLoading(true);
     try {
-      const fn = mode === "login" ? api.login(form.email, form.password) : api.register(form.email, form.password, form.name);
-      const { token, user } = await fn;
+      const { token, user } = await api.login(form.email, form.password);
       setToken(token);
       onAuthed(user);
     } catch (err) {
@@ -42,13 +34,8 @@ export default function Login({ onAuthed }) {
           </div>
         </div>
 
-        <h1 style={{ fontSize: 16, margin: "0 0 16px" }}>
-          {mode === "login" ? "Нэвтрэх" : "Бүртгүүлэх"}
-        </h1>
+        <h1 style={{ fontSize: 16, margin: "0 0 16px" }}>Нэвтрэх</h1>
 
-        {mode === "register" && (
-          <Field label="Нэр" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-        )}
         <Field label="Имэйл" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
         <Field label="Нууц үг" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
 
@@ -61,33 +48,8 @@ export default function Login({ onAuthed }) {
           disabled={loading}
           style={{ background: "var(--gold)", color: "#12141c", width: "100%", padding: "10px 0", borderRadius: 8, fontWeight: 600, fontSize: 13, marginTop: 16, opacity: loading ? 0.6 : 1 }}
         >
-          {loading ? "..." : mode === "login" ? "Нэвтрэх" : "Бүртгүүлэх"}
+          {loading ? "..." : "Нэвтрэх"}
         </button>
-
-        <button
-          type="button"
-          onClick={() => setMode(mode === "login" ? "register" : "login")}
-          style={{ background: "transparent", color: "var(--muted)", width: "100%", padding: "10px 0", fontSize: 12, marginTop: 4 }}
-        >
-          {mode === "login" ? "Шинэ хэрэглэгч бүртгүүлэх" : "Аль хэдийн бүртгэлтэй юу? Нэвтрэх"}
-        </button>
-
-        {mode === "login" && (
-          <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ color: "var(--muted)", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Демо эрхээр нэвтрэх</div>
-            {DEMO_ACCOUNTS.map((acc) => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => setForm({ ...form, email: acc.email, password: acc.password })}
-                style={{ background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 6, padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}
-              >
-                <span style={{ color: acc.color, fontWeight: 600 }}>{acc.role}</span>
-                <span style={{ color: "var(--muted)" }} className="plex-mono">{acc.email}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </form>
     </div>
   );

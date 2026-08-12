@@ -32,8 +32,6 @@ function qs(params = {}) {
 export const api = {
   login: (email, password) =>
     request("/api/auth/login", { method: "POST", body: { email, password }, auth: false }),
-  register: (email, password, name) =>
-    request("/api/auth/register", { method: "POST", body: { email, password, name }, auth: false }),
   me: () => request("/api/auth/me"),
 
   getOverview: () => request("/api/overview"),
@@ -92,6 +90,7 @@ export const api = {
   getEmployee: (id) => request(`/api/employees/${id}`),
   updateEmployee: (id, payload) => request(`/api/employees/${id}`, { method: "PATCH", body: payload }),
   deleteEmployee: (id) => request(`/api/employees/${id}`, { method: "DELETE" }),
+  grantLogin: (id, payload) => request(`/api/employees/${id}/grant-login`, { method: "POST", body: payload }),
   setEmployeeBirthday: (id, month, day) => request(`/api/employees/${id}/birthday`, { method: "POST", body: { month, day } }),
   planEmployeeLeave: (id) => request(`/api/employees/${id}/leave/plan`, { method: "POST" }),
   registerLeave: (id, payload) => request(`/api/employees/${id}/leave`, { method: "POST", body: payload }),
