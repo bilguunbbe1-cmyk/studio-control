@@ -54,9 +54,22 @@ router.get("/search", (req, res) => {
 router.get("/notifications", (req, res) => {
   const items = [];
 
+  const personal = db
+    .prepare("SELECT id, message, kind, created_at FROM notifications WHERE user_id = ? AND read = 0 ORDER BY created_at DESC")
+    .all(req.user.id);
+  personal.forEach((n) => items.push({ id: `n${n.id}`, text: n.message, kind: n.kind }));
+  if (personal.length) {
+    db.prepare(
+      `UPDATE notifications SET read = 1 WHERE user_id = ? AND id IN (${personal.map(() => "?").join(",")})`
+    ).run(req.user.id, ...personal.map((n) => n.id));
+  }
+
   if (req.user.role === "ceo" || req.user.role === "manager") {
     const pending = db.prepare("SELECT COUNT(*) AS c FROM approvals WHERE status = 'pending'").get().c;
     if (pending) items.push({ id: "decisions", text: `${pending} шийдвэр хүлээгдэж байна`, kind: "decision" });
+
+    const paymentRequests = db.prepare("SELECT COUNT(*) AS c FROM payment_requests WHERE status = 'pending'").get().c;
+    if (paymentRequests) items.push({ id: "payments", text: `${paymentRequests} гүйлгээний хүсэлт хүлээгдэж байна`, kind: "payment" });
 
     const blockers = db.prepare("SELECT COUNT(*) AS c FROM blockers WHERE resolved = 0").get().c;
     if (blockers) items.push({ id: "blockers", text: `${blockers} blocker шийдвэрлэгдээгүй байна`, kind: "blocker" });

@@ -11,6 +11,7 @@ const FILTERS = [
   { value: "editing", label: "Edit хийж байна" },
   { value: "internal_review", label: "Дотоод хяналт" },
   { value: "awaiting_client", label: "Харилцагч хүлээж байна" },
+  { value: "done", label: "Дууссан" },
 ];
 
 export default function MyWork({ user }) {
@@ -42,7 +43,9 @@ export default function MyWork({ user }) {
     }
   }
 
-  const visible = filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  const visible = filter === "all"
+    ? [...tasks].sort((a, b) => (a.status === "done") - (b.status === "done"))
+    : tasks.filter((t) => t.status === filter);
 
   return (
     <div>

@@ -49,6 +49,7 @@ export const api = {
   remindChecklist: (projectId) => request(`/api/projects/${projectId}/checklist/remind`, { method: "POST" }),
   addDeliverable: (projectId, payload) => request(`/api/projects/${projectId}/deliverables`, { method: "POST", body: payload }),
   updateDeliverable: (id, payload) => request(`/api/deliverables/${id}`, { method: "PATCH", body: payload }),
+  deleteDeliverable: (id) => request(`/api/deliverables/${id}`, { method: "DELETE" }),
   addCostItem: (projectId, payload) => request(`/api/projects/${projectId}/cost-items`, { method: "POST", body: payload }),
   addReviewItem: (projectId, payload) => request(`/api/projects/${projectId}/review-items`, { method: "POST", body: payload }),
   setCostReceipt: (id, receiptStatus) => request(`/api/cost-items/${id}/receipt`, { method: "PATCH", body: { receiptStatus } }),
@@ -74,6 +75,11 @@ export const api = {
 
   getBlockers: () => request("/api/blockers"),
   resolveBlocker: (id) => request(`/api/blockers/${id}/resolve`, { method: "POST" }),
+
+  createPaymentRequest: (payload) => request("/api/payment-requests", { method: "POST", body: payload }),
+  getMyPaymentRequests: () => request("/api/payment-requests/mine"),
+  getPaymentRequests: (status) => request(`/api/payment-requests${qs({ status })}`),
+  payPaymentRequest: (id) => request(`/api/payment-requests/${id}/pay`, { method: "POST" }),
 
   getFinanceSummary: () => request("/api/finance/summary"),
   getFinanceProjects: () => request("/api/finance/projects"),

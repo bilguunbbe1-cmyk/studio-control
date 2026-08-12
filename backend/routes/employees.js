@@ -7,7 +7,7 @@ const { EMPLOYEE_FILE_CATEGORIES } = require("../lib/helpers");
 const router = express.Router();
 router.use(requireAuth);
 
-const CAN_MANAGE = requireRole("ceo", "manager");
+const CEO_ONLY = requireRole("ceo");
 
 function tenureLabel(hireDate) {
   const start = new Date(hireDate);
@@ -21,6 +21,15 @@ function tenureLabel(hireDate) {
   if (years) parts.push(`${years} жил`);
   parts.push(`${remMonths} сар`);
   return parts.join(" ");
+}
+
+function isSelf(req, employeeId) {
+  const row = db.prepare("SELECT id FROM employees WHERE id = ? AND user_id = ?").get(employeeId, req.user.id);
+  return !!row;
+}
+
+function canSeeFull(req, employeeId) {
+  return req.user.role === "ceo" || isSelf(req, employeeId);
 }
 
 function shapeListItem(e) {
@@ -38,6 +47,12 @@ function shapeListItem(e) {
   };
 }
 
+function shapeListItemForViewer(req, e) {
+  const full = shapeListItem(e);
+  if (canSeeFull(req, e.id)) return full;
+  return { id: full.id, code: full.code, name: full.name, title: full.title };
+}
+
 // ---- Employees list ----
 router.get("/employees", (req, res) => {
   let rows = db.prepare("SELECT * FROM employees ORDER BY name").all();
@@ -50,10 +65,10 @@ router.get("/employees", (req, res) => {
   if (filter === "active") rows = rows;
   if (filter === "missing_contract") rows = rows.filter((e) => e.contract_status !== "Гэрээтэй");
 
-  res.json(rows.map(shapeListItem));
+  res.json(rows.map((e) => shapeListItemForViewer(req, e)));
 });
 
-router.post("/employees", CAN_MANAGE, (req, res) => {
+router.post("/employees", CEO_ONLY, (req, res) => {
   const { name, title, city, hireDate, baseSalaryAmount } = req.body || {};
   if (!name || !title || !hireDate) return res.status(400).json({ error: "name, title, hireDate шаардлагатай" });
   const code = `EMP-${String(100 + db.prepare("SELECT COUNT(*) AS c FROM employees").get().c).slice(-3)}`;
@@ -75,11 +90,15 @@ router.get("/employees/:id", (req, res) => {
   const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
   if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
 
+  const full = canSeeFull(req, e.id);
+  if (!full) {
+    return res.json({ ...shapeListItemForViewer(req, e), canSeeFull: false, isCeo: req.user.role === "ceo" });
+  }
+
   const contract = db.prepare("SELECT * FROM contracts WHERE employee_id = ? ORDER BY id DESC LIMIT 1").get(e.id);
   const leaveCycle = db.prepare("SELECT * FROM leave_cycles WHERE employee_id = ?").get(e.id);
   const leaveHistory = db.prepare("SELECT * FROM leave_records WHERE employee_id = ? ORDER BY start_date DESC").all(e.id);
 
-  const canSeeAmounts = req.user.role === "ceo";
   const payrollRows = db.prepare("SELECT * FROM payroll_entries WHERE employee_id = ? ORDER BY date").all(e.id);
   const payrollSchedule = payrollRows.map((p) => ({
     id: p.id,
@@ -88,7 +107,7 @@ router.get("/employees/:id", (req, res) => {
     status: p.status,
     isAdvance: !!p.is_advance,
     pctOfBase: p.is_advance ? p.pct_of_base : null,
-    amount: canSeeAmounts ? p.amount : null,
+    amount: p.amount,
   }));
   const nextDisbursement = payrollRows.find((p) => p.status === "Төлөвлөсөн" && p.is_advance);
   const nextBalance = payrollRows.find((p) => p.status === "Төлөвлөсөн" && !p.is_advance);
@@ -100,6 +119,8 @@ router.get("/employees/:id", (req, res) => {
 
   res.json({
     ...shapeListItem(e),
+    canSeeFull: true,
+    isCeo: req.user.role === "ceo",
     city: e.city,
     tenure: tenureLabel(e.hire_date),
     contract: contract
@@ -121,7 +142,7 @@ router.get("/employees/:id", (req, res) => {
       history: leaveHistory,
     },
     salary: {
-      canSeeAmounts,
+      canSeeAmounts: true,
       nextDisbursementDate: nextDisbursement ? nextDisbursement.date : null,
       nextDisbursementPctOfBase: nextDisbursement ? nextDisbursement.pct_of_base : null,
       nextBalanceDate: nextBalance ? nextBalance.date : null,
@@ -131,7 +152,7 @@ router.get("/employees/:id", (req, res) => {
   });
 });
 
-router.patch("/employees/:id", CAN_MANAGE, (req, res) => {
+router.patch("/employees/:id", CEO_ONLY, (req, res) => {
   const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
   if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
   const { name, title, city } = req.body || {};
@@ -144,7 +165,7 @@ router.patch("/employees/:id", CAN_MANAGE, (req, res) => {
   res.json(shapeListItem(db.prepare("SELECT * FROM employees WHERE id = ?").get(e.id)));
 });
 
-router.delete("/employees/:id", CAN_MANAGE, (req, res) => {
+router.delete("/employees/:id", CEO_ONLY, (req, res) => {
   const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
   if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
   try {
@@ -160,7 +181,7 @@ router.delete("/employees/:id", CAN_MANAGE, (req, res) => {
   }
 });
 
-router.post("/employees/:id/birthday", CAN_MANAGE, (req, res) => {
+router.post("/employees/:id/birthday", CEO_ONLY, (req, res) => {
   const { month, day } = req.body || {};
   if (!month || !day) return res.status(400).json({ error: "month, day шаардлагатай" });
   const birthday = `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -168,14 +189,14 @@ router.post("/employees/:id/birthday", CAN_MANAGE, (req, res) => {
   res.json({ ok: true, birthday });
 });
 
-router.post("/employees/:id/leave/plan", CAN_MANAGE, (req, res) => {
+router.post("/employees/:id/leave/plan", CEO_ONLY, (req, res) => {
   const cycle = db.prepare("SELECT * FROM leave_cycles WHERE employee_id = ?").get(req.params.id);
   if (!cycle) return res.status(404).json({ error: "Амралтын мэдээлэл олдсонгүй" });
   db.prepare("UPDATE leave_cycles SET status = 'Төлөвлөсөн' WHERE id = ?").run(cycle.id);
   res.json({ ok: true });
 });
 
-router.post("/employees/:id/leave", CAN_MANAGE, (req, res) => {
+router.post("/employees/:id/leave", CEO_ONLY, (req, res) => {
   const { startDate, endDate, days, coveringEmployeeId } = req.body || {};
   if (!startDate || !endDate || !days) return res.status(400).json({ error: "startDate, endDate, days шаардлагатай" });
   const info = db
@@ -184,7 +205,7 @@ router.post("/employees/:id/leave", CAN_MANAGE, (req, res) => {
   res.status(201).json({ id: info.lastInsertRowid });
 });
 
-router.post("/employees/:id/contracts", CAN_MANAGE, (req, res) => {
+router.post("/employees/:id/contracts", CEO_ONLY, (req, res) => {
   const { contractNumber, startDate, term, status } = req.body || {};
   if (!contractNumber || !startDate) return res.status(400).json({ error: "contractNumber, startDate шаардлагатай" });
   db.prepare(
@@ -195,12 +216,12 @@ router.post("/employees/:id/contracts", CAN_MANAGE, (req, res) => {
 });
 
 // ---- Files ----
-router.get("/employees/:id/files", CAN_MANAGE, (req, res) => {
+router.get("/employees/:id/files", CEO_ONLY, (req, res) => {
   const rows = db.prepare("SELECT id, category, filename, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'employee' AND owner_id = ? ORDER BY created_at DESC").all(req.params.id);
   res.json(rows);
 });
 
-router.post("/employees/:id/files", CAN_MANAGE, upload.single("file"), (req, res) => {
+router.post("/employees/:id/files", CEO_ONLY, upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "file шаардлагатай" });
   const { category } = req.body || {};
   if (!EMPLOYEE_FILE_CATEGORIES.includes(category)) return res.status(400).json({ error: "category буруу байна" });

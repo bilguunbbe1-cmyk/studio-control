@@ -234,16 +234,24 @@ router.post("/projects/:id/deliverables", CAN_MANAGE, (req, res) => {
 });
 
 router.patch("/deliverables/:id", CAN_MANAGE, (req, res) => {
-  const { doneCount, totalCount } = req.body || {};
+  const { title, doneCount, totalCount } = req.body || {};
   const d = db.prepare("SELECT * FROM deliverables WHERE id = ?").get(req.params.id);
   if (!d) return res.status(404).json({ error: "Deliverable олдсонгүй" });
-  db.prepare("UPDATE deliverables SET done_count = ?, total_count = ? WHERE id = ?").run(
+  db.prepare("UPDATE deliverables SET title = ?, done_count = ?, total_count = ? WHERE id = ?").run(
+    title ?? d.title,
     doneCount ?? d.done_count,
     totalCount ?? d.total_count,
     d.id
   );
   const row = db.prepare("SELECT id, title, done_count AS doneCount, total_count AS totalCount FROM deliverables WHERE id = ?").get(d.id);
   res.json(row);
+});
+
+router.delete("/deliverables/:id", CAN_MANAGE, (req, res) => {
+  const d = db.prepare("SELECT * FROM deliverables WHERE id = ?").get(req.params.id);
+  if (!d) return res.status(404).json({ error: "Deliverable олдсонгүй" });
+  db.prepare("DELETE FROM deliverables WHERE id = ?").run(d.id);
+  res.status(204).end();
 });
 
 // ---- Cost line items ----

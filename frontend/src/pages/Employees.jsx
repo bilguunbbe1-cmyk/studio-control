@@ -22,7 +22,7 @@ function nextUpcomingBirthday(employees) {
 }
 
 export default function Employees({ user }) {
-  const canManage = user.role === "ceo" || user.role === "manager";
+  const isCeo = user.role === "ceo";
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -59,12 +59,14 @@ export default function Employees({ user }) {
 
       <ErrorBanner message={error} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-        <ReminderCard icon={Cake} label="Ойрын төрсөн өдөр" value={upcomingBirthday ? `${upcomingBirthday.name} · ${upcomingBirthday.birthday}` : "Мэдээлэл алга"} />
-        <ReminderCard icon={Sun} label="Амралт төлөвлөх" value={`${leavePlanCount} ажилтан бэлэн болсон`} />
-        <ReminderCard icon={FileText} label="Гэрээний сануулга" value={`${missingContractCount} гэрээ шинэчлэх`} />
-        <ReminderCard icon={Wallet} label="Дараагийн цалин" value="Сар бүрийн 20 · Урьдчилгаа" />
-      </div>
+      {isCeo && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+          <ReminderCard icon={Cake} label="Ойрын төрсөн өдөр" value={upcomingBirthday ? `${upcomingBirthday.name} · ${upcomingBirthday.birthday}` : "Мэдээлэл алга"} />
+          <ReminderCard icon={Sun} label="Амралт төлөвлөх" value={`${leavePlanCount} ажилтан бэлэн болсон`} />
+          <ReminderCard icon={FileText} label="Гэрээний сануулга" value={`${missingContractCount} гэрээ шинэчлэх`} />
+          <ReminderCard icon={Wallet} label="Дараагийн цалин" value="Сар бүрийн 20 · Урьдчилгаа" />
+        </div>
+      )}
 
       <input
         value={search}
@@ -76,9 +78,9 @@ export default function Employees({ user }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <FilterPill active={filter === "all"} onClick={() => setFilter("all")} label={`Идэвхтэй ${employees.length}`} />
-          <FilterPill active={filter === "missing_contract"} onClick={() => setFilter("missing_contract")} label={`Гэрээ дутуу ${missingContractCount}`} />
+          {isCeo && <FilterPill active={filter === "missing_contract"} onClick={() => setFilter("missing_contract")} label={`Гэрээ дутуу ${missingContractCount}`} />}
         </div>
-        {canManage && (
+        {isCeo && (
           <button onClick={() => setShowNew(true)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8 }}>
             ＋ Ажилтан нэмэх
           </button>
@@ -98,10 +100,10 @@ export default function Employees({ user }) {
                 <div style={{ color: "var(--muted)", fontSize: 11 }}>{e.title}</div>
               </span>
             </span>
-            <span className="plex-mono">{e.hireDate}</span>
-            <span>{e.birthday || <span style={{ color: "var(--rust)" }}>Дутуу</span>}</span>
+            <span className="plex-mono">{e.hireDate || "—"}</span>
+            <span>{e.hireDate ? e.birthday || <span style={{ color: "var(--rust)" }}>Дутуу</span> : "—"}</span>
             <span className="plex-mono">{e.nextLeaveCycleDate || "—"}</span>
-            <span style={{ color: e.contractStatus === "Гэрээтэй" ? "var(--teal)" : "var(--rust)", fontWeight: 600 }}>{e.contractStatus}</span>
+            <span style={{ color: e.contractStatus === "Гэрээтэй" ? "var(--teal)" : e.contractStatus ? "var(--rust)" : "var(--muted)", fontWeight: 600 }}>{e.contractStatus || "—"}</span>
           </button>
         ))}
         {employees.length === 0 && <div style={{ padding: 20 }}><EmptyState>Ажилтан алга</EmptyState></div>}

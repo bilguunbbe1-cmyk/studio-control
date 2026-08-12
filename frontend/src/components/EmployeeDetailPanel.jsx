@@ -4,13 +4,14 @@ import { api } from "../api";
 import { emit } from "../bus";
 import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState } from "../components";
 
-const TABS = [
+const FULL_TABS = [
   { value: "general", label: "Ерөнхий" },
   { value: "contract", label: "Хөдөлмөрийн гэрээ" },
   { value: "leave", label: "Амралт" },
   { value: "salary", label: "Цалин" },
   { value: "files", label: "Файл" },
 ];
+const LIMITED_TABS = [{ value: "general", label: "Ерөнхий" }];
 
 export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [employee, setEmployee] = useState(null);
@@ -19,7 +20,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const toast = useToast();
-  const canManage = user?.role === "ceo" || user?.role === "manager";
+  const isCeo = user?.role === "ceo";
 
   const load = useCallback(async () => {
     if (!employeeId) return;
@@ -97,6 +98,9 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
     }
   }
 
+  const canSeeFull = employee?.canSeeFull !== false;
+  const tabs = canSeeFull ? FULL_TABS : LIMITED_TABS;
+
   return (
     <SlideOver open={!!employeeId} onClose={onClose}>
       {!employee ? (
@@ -108,7 +112,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{employee.code} · Идэвхтэй ажилтан</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
-              {canManage && (
+              {isCeo && (
                 <>
                   <button onClick={() => setMenuOpen((v) => !v)} style={{ background: "transparent" }}><MoreHorizontal size={16} color="var(--muted)" /></button>
                   {menuOpen && (
@@ -126,14 +130,15 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 2px" }}>{employee.name}</h2>
           <div style={{ color: "var(--muted)", fontSize: 12, marginBottom: 20 }}>{employee.title}</div>
 
-          <TabBar tabs={TABS} active={tab} onChange={setTab} />
+          <TabBar tabs={tabs} active={canSeeFull ? tab : "general"} onChange={setTab} />
           {error && <div style={{ color: "var(--rust)", fontSize: 11, marginBottom: 12 }}>{error}</div>}
 
-          {tab === "general" && <GeneralTab employee={employee} canManage={canManage} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} />}
-          {tab === "contract" && <ContractTab employee={employee} />}
-          {tab === "leave" && <LeaveTab employee={employee} canManage={canManage} onPlan={planLeave} />}
-          {tab === "salary" && <SalaryTab employee={employee} />}
-          {tab === "files" && <FilesTab employee={employee} canManage={canManage} onUpload={uploadFile} />}
+          {!canSeeFull && <EmptyState>Энэ ажилтны дэлгэрэнгүй мэдээлэл зөвхөн тухайн хүн болон CEO-д харагдана.</EmptyState>}
+          {canSeeFull && tab === "general" && <GeneralTab employee={employee} isCeo={isCeo} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} />}
+          {canSeeFull && tab === "contract" && <ContractTab employee={employee} />}
+          {canSeeFull && tab === "leave" && <LeaveTab employee={employee} isCeo={isCeo} onPlan={planLeave} />}
+          {canSeeFull && tab === "salary" && <SalaryTab employee={employee} />}
+          {canSeeFull && tab === "files" && <FilesTab employee={employee} isCeo={isCeo} onUpload={uploadFile} />}
         </>
       )}
     </SlideOver>
@@ -168,14 +173,14 @@ function Metric({ label, value, sub }) {
   );
 }
 
-function GeneralTab({ employee, canManage, onSubmitBirthday, onEdit }) {
+function GeneralTab({ employee, isCeo, onSubmitBirthday, onEdit }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
         <div style={{ color: "var(--muted)", fontSize: 12 }}>
           {employee.title} · {employee.city} · {employee.hireDate}-нд ажилд орсон
         </div>
-        {canManage && (
+        {isCeo && (
           <button onClick={onEdit} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, flexShrink: 0 }}>
             Мэдээлэл засах
           </button>
@@ -186,7 +191,7 @@ function GeneralTab({ employee, canManage, onSubmitBirthday, onEdit }) {
         <div style={{ background: "var(--panel2)", border: "1px dashed var(--line)", borderRadius: 10, padding: 12, marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Төрсөн өдөр бүртгэгдээгүй байна</div>
           <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 8 }}>Сануулахын тулд сар, өдрийг оруулна уу. Он заавал биш.</div>
-          <button onClick={onSubmitBirthday} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Оруулах</button>
+          {isCeo && <button onClick={onSubmitBirthday} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Оруулах</button>}
         </div>
       )}
 
@@ -238,7 +243,7 @@ function ContractTab({ employee }) {
   );
 }
 
-function LeaveTab({ employee, canManage, onPlan }) {
+function LeaveTab({ employee, isCeo, onPlan }) {
   const { leave } = employee;
   return (
     <div>
@@ -252,7 +257,7 @@ function LeaveTab({ employee, canManage, onPlan }) {
           <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 8 }}>
             Компанийн {leave.cycleLengthMonths} сарын давтамжийн тохиргоогоор {leave.nextCycleDate}-ээс амралтын дараагийн цикл нээгдсэн.
           </div>
-          {canManage && (
+          {isCeo && (
             <button onClick={onPlan} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6 }}>Амралт төлөвлөх</button>
           )}
         </div>
@@ -289,7 +294,7 @@ function SalaryTab({ employee }) {
 
       <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Цалингийн хуваарь</h3>
       <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 10 }}>Сар бүр автоматаар</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {salary.schedule.map((s) => (
           <div key={s.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
             <div>
@@ -303,24 +308,18 @@ function SalaryTab({ employee }) {
           </div>
         ))}
       </div>
-
-      {!salary.canSeeAmounts && (
-        <div style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.5 }}>
-          Цалингийн бодит дүнг зөвхөн CEO харна. Танд огноо, төлөв харагдана — дүн нуугдсан.
-        </div>
-      )}
     </div>
   );
 }
 
-function FilesTab({ employee, canManage, onUpload }) {
+function FilesTab({ employee, isCeo, onUpload }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
       {employee.fileFolders.map((f) => (
-        <label key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: canManage ? "pointer" : "default" }}>
+        <label key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: isCeo ? "pointer" : "default" }}>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{f.category}</div>
           <div style={{ fontSize: 11 }} className="plex-mono">{f.count} файл</div>
-          {canManage && <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />}
+          {isCeo && <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />}
         </label>
       ))}
     </div>

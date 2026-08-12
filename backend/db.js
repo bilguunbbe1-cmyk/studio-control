@@ -184,6 +184,31 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_time TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS payment_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  requested_by_user_id INTEGER NOT NULL REFERENCES users(id),
+  purpose TEXT NOT NULL,
+  bank TEXT,
+  account_number TEXT,
+  recipient_name TEXT,
+  amount REAL NOT NULL,
+  has_receipt INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  paid_at TEXT,
+  paid_by INTEGER REFERENCES users(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'info',
+  read INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 const employeeCount = db.prepare("SELECT COUNT(*) AS c FROM employees").get().c;

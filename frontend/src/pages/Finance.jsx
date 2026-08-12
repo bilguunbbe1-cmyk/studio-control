@@ -1,23 +1,31 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api";
 import { usePanels } from "../panels";
-import { onEvent } from "../bus";
-import { fmt, fmtM, StatCard, ErrorBanner, EmptyState } from "../components";
+import { onEvent, emit } from "../bus";
+import { fmt, fmtM, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
 
 export default function Finance() {
   const [summary, setSummary] = useState(null);
   const [projects, setProjects] = useState([]);
   const [undocumented, setUndocumented] = useState([]);
+  const [paymentRequests, setPaymentRequests] = useState([]);
   const [error, setError] = useState("");
+  const toast = useToast();
   const { openProject } = usePanels();
 
   const load = useCallback(async () => {
     try {
-      const [s, p, u] = await Promise.all([api.getFinanceSummary(), api.getFinanceProjects(), api.getUndocumentedExpenses()]);
+      const [s, p, u, pr] = await Promise.all([
+        api.getFinanceSummary(),
+        api.getFinanceProjects(),
+        api.getUndocumentedExpenses(),
+        api.getPaymentRequests("pending"),
+      ]);
       setSummary(s);
       setProjects(p);
       setUndocumented(u);
+      setPaymentRequests(pr);
     } catch (err) {
       setError(err.message);
     }
@@ -28,6 +36,17 @@ export default function Finance() {
   }, [load]);
 
   useEffect(() => onEvent("projects-changed", load), [load]);
+
+  async function pay(id) {
+    try {
+      await api.payPaymentRequest(id);
+      toast("Гүйлгээ шилжлээ");
+      load();
+      emit("projects-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
     <div>
@@ -41,6 +60,31 @@ export default function Finance() {
           <StatCard label="Авлага" value={fmtM(summary.receivable)} sub={`${fmtM(summary.overdueReceivable)} overdue`} accent="var(--rust)" />
           <StatCard label="Баримтгүй зардал" value={fmtM(summary.undocumentedExpenses)} sub={`${summary.undocumentedGapPct}% gap`} accent="var(--gold)" />
         </div>
+      )}
+
+      {paymentRequests.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Гүйлгээний хүсэлт</h2>
+          <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 12 }}>{paymentRequests.length} хүсэлт хүлээгдэж байна</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 }}>
+            {paymentRequests.map((r) => (
+              <div key={r.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 500 }}>{r.purpose}</div>
+                  <div style={{ color: "var(--muted)", fontSize: 11 }}>
+                    {r.projectName} · {r.requestedBy} · {r.recipientName}{r.bank ? ` · ${r.bank}` : ""}{r.accountNumber ? ` ${r.accountNumber}` : ""}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span className="plex-mono" style={{ fontWeight: 700 }}>₮{fmt(r.amount)}</span>
+                  <button onClick={() => pay(r.id)} style={{ background: "var(--gold)", color: "#12141c", fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                    Илгээсэн ✓
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <h2 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Төслийн ашиг</h2>

@@ -3,6 +3,7 @@ import { X, Check, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
 import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, fmtM, useToast, EmptyState } from "../components";
+import PaymentRequestModal from "./PaymentRequestModal";
 
 const TABS = [
   { value: "overview", label: "Тойм" },
@@ -29,6 +30,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [error, setError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const toast = useToast();
   const canManage = user?.role === "ceo" || user?.role === "manager";
 
@@ -99,10 +101,33 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     }
   }
 
-  async function bumpDeliverable(d) {
-    if (d.doneCount >= d.totalCount) return;
+  async function bumpDeliverable(d, delta) {
+    const doneCount = Math.max(0, Math.min(d.totalCount, d.doneCount + delta));
     try {
-      await api.updateDeliverable(d.id, { doneCount: d.doneCount + 1 });
+      await api.updateDeliverable(d.id, { doneCount });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function editDeliverable(d) {
+    const title = window.prompt("Deliverable нэр:", d.title);
+    if (!title) return;
+    const totalCount = window.prompt("Нийт тоо:", d.totalCount);
+    if (!totalCount || Number.isNaN(Number(totalCount))) return;
+    try {
+      await api.updateDeliverable(d.id, { title, totalCount: Number(totalCount) });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function removeDeliverable(d) {
+    if (!window.confirm(`"${d.title}"-г устгах уу?`)) return;
+    try {
+      await api.deleteDeliverable(d.id);
       load();
     } catch (err) {
       setError(err.message);
@@ -196,15 +221,16 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           <ErrorLine message={error} />
 
           {tab === "overview" && (
-            <OverviewTab project={project} canManage={canManage} onToggle={toggleChecklist} onRemind={remind} />
+            <OverviewTab project={project} canManage={canManage} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
           )}
-          {tab === "plan" && <PlanTab project={project} canManage={canManage} onAdd={addDeliverable} onBump={bumpDeliverable} />}
+          {tab === "plan" && <PlanTab project={project} canManage={canManage} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
           {tab === "review" && <ReviewTab project={project} canManage={canManage} onAdd={addReviewItem} />}
           {tab === "finance" && <FinanceTab project={project} canManage={canManage} onReceipt={setReceipt} onAddCostItem={addCostItem} />}
           {tab === "files" && <FilesTab project={project} canManage={canManage} onUpload={uploadFile} />}
         </>
       )}
+      {showPaymentRequest && <PaymentRequestModal projectId={projectId} onClose={() => setShowPaymentRequest(false)} />}
     </SlideOver>
   );
 }
@@ -273,9 +299,27 @@ function Metric({ label, value }) {
   );
 }
 
-function OverviewTab({ project, canManage, onToggle, onRemind }) {
+function ChecklistGroup({ items, canManage, onToggle }) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 12 }}>
+      {items.map((c, i) => (
+        <div key={c.id} onClick={() => canManage && onToggle(c)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: i > 0 ? "1px solid var(--line)" : "none", cursor: canManage ? "pointer" : "default", fontSize: 12 }}>
+          <span>{c.label}</span>
+          <span style={{ color: c.complete ? "var(--teal)" : "var(--rust)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+            {c.complete ? <Check size={12} /> : "!"} {c.complete ? "Бүрэн" : "Дутуу"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OverviewTab({ project, canManage, onToggle, onRemind, onRequestPayment }) {
   const doneCount = project.checklist.filter((c) => c.complete).length;
   const pct = project.checklist.length ? Math.round((doneCount / project.checklist.length) * 100) : 0;
+  const pending = project.checklist.filter((c) => !c.complete);
+  const done = project.checklist.filter((c) => c.complete);
 
   return (
     <div>
@@ -287,16 +331,13 @@ function OverviewTab({ project, canManage, onToggle, onRemind }) {
       </div>
 
       <SectionHeading title="Төсөл эхлэх checklist" sub={`${project.checklist.length}-аас ${doneCount} бүрдсэн`} extra={`${pct}%`} />
-      <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 12 }}>
-        {project.checklist.map((c, i) => (
-          <div key={c.id} onClick={() => canManage && onToggle(c)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderTop: i > 0 ? "1px solid var(--line)" : "none", cursor: canManage ? "pointer" : "default", fontSize: 12 }}>
-            <span>{c.label}</span>
-            <span style={{ color: c.complete ? "var(--teal)" : "var(--rust)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-              {c.complete ? <Check size={12} /> : "!"} {c.complete ? "Бүрэн" : "Дутуу"}
-            </span>
-          </div>
-        ))}
-      </div>
+      <ChecklistGroup items={pending} canManage={canManage} onToggle={onToggle} />
+      {done.length > 0 && (
+        <>
+          <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "12px 0 6px" }}>Дууссан</div>
+          <ChecklistGroup items={done} canManage={canManage} onToggle={onToggle} />
+        </>
+      )}
       {canManage && doneCount < project.checklist.length && (
         <button onClick={onRemind} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "8px 12px", borderRadius: 8, marginBottom: 24 }}>
           Дутуу зүйлсийг сануулах
@@ -304,7 +345,7 @@ function OverviewTab({ project, canManage, onToggle, onRemind }) {
       )}
 
       <SectionHeading title="Одоо хийх зүйл" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
         {project.nextTasks.map((t) => (
           <div key={t.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
@@ -315,6 +356,10 @@ function OverviewTab({ project, canManage, onToggle, onRemind }) {
         ))}
         {project.nextTasks.length === 0 && <EmptyState>Одоогоор ажил алга</EmptyState>}
       </div>
+
+      <button onClick={onRequestPayment} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8, width: "100%" }}>
+        ₮ Гүйлгээ хүсэх
+      </button>
     </div>
   );
 }
@@ -335,7 +380,39 @@ function SectionHeading({ title, sub, extra }) {
   );
 }
 
-function PlanTab({ project, canManage, onAdd, onBump }) {
+function DeliverableRow({ d, canManage, onBump, onEdit, onRemove }) {
+  const pct = d.totalCount ? Math.round((d.doneCount / d.totalCount) * 100) : 0;
+  const done = d.doneCount >= d.totalCount;
+  return (
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, marginBottom: 6, gap: 8 }}>
+        <span style={{ fontWeight: 500 }}>{d.title}</span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span style={{ color: "var(--muted)" }} className="plex-mono">{d.doneCount} / {d.totalCount} {d.doneCount > 0 && `· ${pct}%`}</span>
+          {canManage && (
+            <span style={{ display: "flex", gap: 2 }}>
+              {!done && (
+                <button onClick={() => onBump(d, 1)} title="+1 дуусгах" style={{ background: "var(--panel2)", color: "var(--teal)", width: 20, height: 20, borderRadius: 4, fontSize: 12, lineHeight: "20px" }}>+</button>
+              )}
+              {d.doneCount > 0 && (
+                <button onClick={() => onBump(d, -1)} title="-1 буцаах" style={{ background: "var(--panel2)", color: "var(--muted)", width: 20, height: 20, borderRadius: 4, fontSize: 12, lineHeight: "20px" }}>−</button>
+              )}
+              <button onClick={() => onEdit(d)} title="Засах" style={{ background: "var(--panel2)", color: "var(--muted)", width: 20, height: 20, borderRadius: 4 }}><Pencil size={10} style={{ margin: "auto" }} /></button>
+              <button onClick={() => onRemove(d)} title="Устгах" style={{ background: "var(--panel2)", color: "var(--rust)", width: 20, height: 20, borderRadius: 4 }}><Trash2 size={10} style={{ margin: "auto" }} /></button>
+            </span>
+          )}
+        </span>
+      </div>
+      <div style={{ background: "var(--panel2)", borderRadius: 4, height: 6, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, background: "var(--teal)", height: "100%" }} />
+      </div>
+    </div>
+  );
+}
+
+function PlanTab({ project, canManage, onAdd, onBump, onEdit, onRemove }) {
+  const active = project.deliverables.filter((d) => d.doneCount < d.totalCount);
+  const done = project.deliverables.filter((d) => d.doneCount >= d.totalCount);
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -347,28 +424,21 @@ function PlanTab({ project, canManage, onAdd, onBump }) {
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {project.deliverables.map((d) => {
-          const pct = d.totalCount ? Math.round((d.doneCount / d.totalCount) * 100) : 0;
-          const done = d.doneCount >= d.totalCount;
-          return (
-            <div
-              key={d.id}
-              onClick={() => canManage && onBump(d)}
-              title={canManage && !done ? "Дарж 1-ээр дуусгах" : undefined}
-              style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: canManage && !done ? "pointer" : "default" }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                <span style={{ fontWeight: 500 }}>{d.title}</span>
-                <span style={{ color: "var(--muted)" }} className="plex-mono">{d.doneCount} / {d.totalCount} дууссан {d.doneCount > 0 && `· ${pct}%`}</span>
-              </div>
-              <div style={{ background: "var(--panel2)", borderRadius: 4, height: 6, overflow: "hidden" }}>
-                <div style={{ width: `${pct}%`, background: "var(--teal)", height: "100%" }} />
-              </div>
-            </div>
-          );
-        })}
+        {active.map((d) => (
+          <DeliverableRow key={d.id} d={d} canManage={canManage} onBump={onBump} onEdit={onEdit} onRemove={onRemove} />
+        ))}
         {project.deliverables.length === 0 && <EmptyState>Deliverable алга</EmptyState>}
       </div>
+      {done.length > 0 && (
+        <>
+          <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "16px 0 8px" }}>Дууссан</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {done.map((d) => (
+              <DeliverableRow key={d.id} d={d} canManage={canManage} onBump={onBump} onEdit={onEdit} onRemove={onRemove} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -399,7 +469,21 @@ function ProductionTab({ project }) {
 
 const REVIEW_STATUS_LABEL = { editing: "Edit хийж байна", client_review: "Client review", approved: "Approved" };
 
+function ReviewItemRow({ r }) {
+  return (
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500 }}>{r.title}</div>
+        <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{r.version} · {r.editor || "—"}</div>
+      </div>
+      <Badge color={r.reviewStatus === "approved" ? "var(--teal)" : "var(--gold)"}>{REVIEW_STATUS_LABEL[r.reviewStatus] || r.reviewStatus}</Badge>
+    </div>
+  );
+}
+
 function ReviewTab({ project, canManage, onAdd }) {
+  const active = project.reviewItems.filter((r) => r.reviewStatus !== "approved");
+  const done = project.reviewItems.filter((r) => r.reviewStatus === "approved");
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -412,23 +496,46 @@ function ReviewTab({ project, canManage, onAdd }) {
       </div>
       <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 12 }}>{project.reviewItems.length} client feedback</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {project.reviewItems.map((r) => (
-          <div key={r.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 500 }}>{r.title}</div>
-              <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{r.version} · {r.editor || "—"}</div>
-            </div>
-            <Badge color="var(--teal)">{REVIEW_STATUS_LABEL[r.reviewStatus] || r.reviewStatus}</Badge>
-          </div>
-        ))}
+        {active.map((r) => <ReviewItemRow key={r.id} r={r} />)}
         {project.reviewItems.length === 0 && <EmptyState>Edit pipeline хоосон</EmptyState>}
       </div>
+      {done.length > 0 && (
+        <>
+          <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "16px 0 8px" }}>Дууссан</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {done.map((r) => <ReviewItemRow key={r.id} r={r} />)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CostItemRow({ c, onReceipt }) {
+  const meta = RECEIPT_META[c.receiptStatus];
+  return (
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500 }}>{c.category}</div>
+        <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</div>
+      </div>
+      <select
+        value={c.receiptStatus}
+        onChange={(e) => onReceipt(c.id, e.target.value)}
+        style={{ background: `${meta.color}22`, color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
+      >
+        {Object.entries(RECEIPT_META).map(([k, v]) => (
+          <option key={k} value={k}>{v.label}</option>
+        ))}
+      </select>
     </div>
   );
 }
 
 function FinanceTab({ project, canManage, onReceipt, onAddCostItem }) {
   if (!canManage) return <EmptyState>Санхүүгийн мэдээлэл боломжгүй.</EmptyState>;
+  const pending = project.costItems.filter((c) => c.receiptStatus !== "has_receipt");
+  const documented = project.costItems.filter((c) => c.receiptStatus === "has_receipt");
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -445,28 +552,17 @@ function FinanceTab({ project, canManage, onReceipt, onAddCostItem }) {
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {project.costItems.map((c) => {
-          const meta = RECEIPT_META[c.receiptStatus];
-          return (
-            <div key={c.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 500 }}>{c.category}</div>
-                <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</div>
-              </div>
-              <select
-                value={c.receiptStatus}
-                onChange={(e) => onReceipt(c.id, e.target.value)}
-                style={{ background: `${meta.color}22`, color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
-              >
-                {Object.entries(RECEIPT_META).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
+        {pending.map((c) => <CostItemRow key={c.id} c={c} onReceipt={onReceipt} />)}
         {project.costItems.length === 0 && <EmptyState>Зардлын мөр алга</EmptyState>}
       </div>
+      {documented.length > 0 && (
+        <>
+          <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "16px 0 8px" }}>Баримттай</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {documented.map((c) => <CostItemRow key={c.id} c={c} onReceipt={onReceipt} />)}
+          </div>
+        </>
+      )}
     </div>
   );
 }
