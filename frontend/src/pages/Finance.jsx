@@ -58,6 +58,8 @@ export default function Finance() {
           <StatCard label="Гэрээт орлого" value={fmtM(summary.contractedRevenue)} sub="НӨАТ-гүй" accent="var(--teal)" />
           <StatCard label="Орж ирсэн" value={fmtM(summary.received)} sub={`${Math.round((summary.received / summary.contractedRevenue) * 1000) / 10}% collection`} />
           <StatCard label="Авлага" value={fmtM(summary.receivable)} sub={`${fmtM(summary.overdueReceivable)} overdue`} accent="var(--rust)" />
+          <StatCard label="Нийт зардал" value={fmtM(summary.totalExpenses)} sub="бүх зардал" />
+          <StatCard label="Баримттай зардал" value={fmtM(summary.documentedExpenses)} sub={`${summary.totalExpenses ? Math.round((summary.documentedExpenses / summary.totalExpenses) * 100) : 100}%`} accent="var(--teal)" />
           <StatCard label="Баримтгүй зардал" value={fmtM(summary.undocumentedExpenses)} sub={`${summary.undocumentedGapPct}% gap`} accent="var(--amber)" />
         </div>
       )}

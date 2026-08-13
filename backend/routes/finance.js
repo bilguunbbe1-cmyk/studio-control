@@ -22,6 +22,8 @@ router.get("/summary", (req, res) => {
     overdueReceivable: s.overdueReceivable,
     undocumentedExpenses: s.undocumented,
     undocumentedGapPct: s.totalCost ? Math.round((s.undocumented / s.totalCost) * 100) : 0,
+    documentedExpenses: s.documented,
+    totalExpenses: s.totalCost,
     directCosts: s.spent,
     fixedCosts: s.fixedCosts,
     netProfit: s.netProfit,
