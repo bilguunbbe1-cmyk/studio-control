@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { X, Check, Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { X, Check, Plus, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
 import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState } from "../components";
 import PaymentRequestModal from "./PaymentRequestModal";
+import { printProjectReport } from "../lib/printReport";
 
 const FULL_TABS = [
   { value: "overview", label: "Тойм" },
@@ -220,6 +221,9 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{project.code} · {(project.client || "").toUpperCase()}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
+              <button onClick={() => printProjectReport(project, user?.name)} title="Тайлан татах (PDF)" style={{ background: "transparent" }}>
+                <Download size={16} color="var(--muted)" />
+              </button>
               {canEdit && (
                 <>
                   <button onClick={() => setMenuOpen((v) => !v)} style={{ background: "transparent" }}><MoreHorizontal size={16} color="var(--muted)" /></button>
