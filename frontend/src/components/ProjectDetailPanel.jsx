@@ -5,13 +5,19 @@ import { emit } from "../bus";
 import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState } from "../components";
 import PaymentRequestModal from "./PaymentRequestModal";
 
-const TABS = [
+const FULL_TABS = [
   { value: "overview", label: "Тойм" },
   { value: "plan", label: "Төлөвлөгөө" },
   { value: "production", label: "Продакшн" },
   { value: "review", label: "Review" },
   { value: "finance", label: "Санхүү" },
   { value: "files", label: "Файл" },
+];
+
+const PRODUCTION_TABS = [
+  { value: "plan", label: "Төлөвлөгөө" },
+  { value: "production", label: "Продакшн" },
+  { value: "review", label: "Review" },
 ];
 
 const FILE_CATEGORY_HINT = {
@@ -32,7 +38,10 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [editing, setEditing] = useState(false);
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const toast = useToast();
+  const isProduction = user?.role === "production";
   const canManage = user?.role === "ceo" || user?.role === "manager";
+  const canEdit = user?.role === "ceo" || (user?.role === "manager" && project?.ownerEmployeeId === user?.employeeId);
+  const tabs = isProduction ? PRODUCTION_TABS : FULL_TABS;
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -44,7 +53,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   }, [projectId]);
 
   useEffect(() => {
-    setTab("overview");
+    setTab(isProduction ? "plan" : "overview");
     setProject(null);
     setMenuOpen(false);
     setEditing(false);
@@ -196,7 +205,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{project.code} · {(project.client || "").toUpperCase()}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 4, position: "relative" }}>
-              {canManage && (
+              {canEdit && (
                 <>
                   <button onClick={() => setMenuOpen((v) => !v)} style={{ background: "transparent" }}><MoreHorizontal size={16} color="var(--muted)" /></button>
                   {menuOpen && (
@@ -219,17 +228,17 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
             <Badge color={STATUS_META[project.status].color}>{STATUS_META[project.status].label}</Badge>
           </div>
 
-          <TabBar tabs={TABS} active={tab} onChange={setTab} />
+          <TabBar tabs={tabs} active={tab} onChange={setTab} />
           <ErrorLine message={error} />
 
           {tab === "overview" && (
-            <OverviewTab project={project} canManage={canManage} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
+            <OverviewTab project={project} canManage={canManage} canEdit={canEdit} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
           )}
-          {tab === "plan" && <PlanTab project={project} canManage={canManage} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
+          {tab === "plan" && <PlanTab project={project} canManage={canEdit} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
-          {tab === "review" && <ReviewTab project={project} canManage={canManage} onAdd={addReviewItem} />}
-          {tab === "finance" && <FinanceTab project={project} canManage={canManage} onReceipt={setReceipt} onAddCostItem={addCostItem} />}
-          {tab === "files" && <FilesTab project={project} canManage={canManage} onUpload={uploadFile} />}
+          {tab === "review" && <ReviewTab project={project} canManage={canEdit} onAdd={addReviewItem} />}
+          {tab === "finance" && <FinanceTab project={project} canEdit={canEdit} onReceipt={setReceipt} onAddCostItem={addCostItem} />}
+          {tab === "files" && <FilesTab project={project} canManage={canEdit} onUpload={uploadFile} />}
         </>
       )}
       {showPaymentRequest && <PaymentRequestModal projectId={projectId} onClose={() => setShowPaymentRequest(false)} />}
@@ -317,7 +326,7 @@ function ChecklistGroup({ items, canManage, onToggle }) {
   );
 }
 
-function OverviewTab({ project, canManage, onToggle, onRemind, onRequestPayment }) {
+function OverviewTab({ project, canManage, canEdit, onToggle, onRemind, onRequestPayment }) {
   const doneCount = project.checklist.filter((c) => c.complete).length;
   const pct = project.checklist.length ? Math.round((doneCount / project.checklist.length) * 100) : 0;
   const pending = project.checklist.filter((c) => !c.complete);
@@ -333,14 +342,14 @@ function OverviewTab({ project, canManage, onToggle, onRemind, onRequestPayment 
       </div>
 
       <SectionHeading title="Төсөл эхлэх checklist" sub={`${project.checklist.length}-аас ${doneCount} бүрдсэн`} extra={`${pct}%`} />
-      <ChecklistGroup items={pending} canManage={canManage} onToggle={onToggle} />
+      <ChecklistGroup items={pending} canManage={canEdit} onToggle={onToggle} />
       {done.length > 0 && (
         <>
           <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "12px 0 6px" }}>Дууссан</div>
-          <ChecklistGroup items={done} canManage={canManage} onToggle={onToggle} />
+          <ChecklistGroup items={done} canManage={canEdit} onToggle={onToggle} />
         </>
       )}
-      {canManage && doneCount < project.checklist.length && (
+      {canEdit && doneCount < project.checklist.length && (
         <button onClick={onRemind} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "8px 12px", borderRadius: 8, marginBottom: 24 }}>
           Дутуу зүйлсийг сануулах
         </button>
@@ -513,7 +522,7 @@ function ReviewTab({ project, canManage, onAdd }) {
   );
 }
 
-function CostItemRow({ c, onReceipt }) {
+function CostItemRow({ c, canEdit, onReceipt }) {
   const meta = RECEIPT_META[c.receiptStatus];
   return (
     <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -521,21 +530,24 @@ function CostItemRow({ c, onReceipt }) {
         <div style={{ fontSize: 12, fontWeight: 500 }}>{c.category}</div>
         <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</div>
       </div>
-      <select
-        value={c.receiptStatus}
-        onChange={(e) => onReceipt(c.id, e.target.value)}
-        style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
-      >
-        {Object.entries(RECEIPT_META).map(([k, v]) => (
-          <option key={k} value={k}>{v.label}</option>
-        ))}
-      </select>
+      {canEdit ? (
+        <select
+          value={c.receiptStatus}
+          onChange={(e) => onReceipt(c.id, e.target.value)}
+          style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
+        >
+          {Object.entries(RECEIPT_META).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </select>
+      ) : (
+        <Badge color={meta.color}>{meta.label}</Badge>
+      )}
     </div>
   );
 }
 
-function FinanceTab({ project, canManage, onReceipt, onAddCostItem }) {
-  if (!canManage) return <EmptyState>Санхүүгийн мэдээлэл боломжгүй.</EmptyState>;
+function FinanceTab({ project, canEdit, onReceipt, onAddCostItem }) {
   const pending = project.costItems.filter((c) => c.receiptStatus !== "has_receipt");
   const documented = project.costItems.filter((c) => c.receiptStatus === "has_receipt");
   return (
@@ -549,19 +561,21 @@ function FinanceTab({ project, canManage, onReceipt, onAddCostItem }) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Зардлын хяналт</h3>
-        <button onClick={onAddCostItem} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-          <Plus size={12} /> Зардал
-        </button>
+        {canEdit && (
+          <button onClick={onAddCostItem} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Plus size={12} /> Зардал
+          </button>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {pending.map((c) => <CostItemRow key={c.id} c={c} onReceipt={onReceipt} />)}
+        {pending.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} />)}
         {project.costItems.length === 0 && <EmptyState>Зардлын мөр алга</EmptyState>}
       </div>
       {documented.length > 0 && (
         <>
           <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "16px 0 8px" }}>Баримттай</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {documented.map((c) => <CostItemRow key={c.id} c={c} onReceipt={onReceipt} />)}
+            {documented.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} />)}
           </div>
         </>
       )}

@@ -16,16 +16,16 @@ router.post("/login", (req, res) => {
   }
   const user = { id: row.id, email: row.email, name: row.name, role: row.role };
   const token = jwt.sign(user, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, user: { ...user, photoUrl: employeePhotoUrl(row.id) } });
+  res.json({ token, user: { ...user, ...employeeExtras(row.id) } });
 });
 
 router.get("/me", requireAuth, (req, res) => {
-  res.json({ user: { ...req.user, photoUrl: employeePhotoUrl(req.user.id) } });
+  res.json({ user: { ...req.user, ...employeeExtras(req.user.id) } });
 });
 
-function employeePhotoUrl(userId) {
-  const e = db.prepare("SELECT photo_url FROM employees WHERE user_id = ?").get(userId);
-  return e && e.photo_url ? `/uploads/${e.photo_url}` : null;
+function employeeExtras(userId) {
+  const e = db.prepare("SELECT id, photo_url FROM employees WHERE user_id = ?").get(userId);
+  return { employeeId: e ? e.id : null, photoUrl: e && e.photo_url ? `/uploads/${e.photo_url}` : null };
 }
 
 module.exports = router;

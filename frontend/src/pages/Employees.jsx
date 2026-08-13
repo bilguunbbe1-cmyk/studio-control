@@ -88,25 +88,29 @@ export default function Employees({ user }) {
       </div>
 
       <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
-          <span>АЖИЛТАН</span><span>ХЭЛТЭС</span><span>ТӨРСӨН ӨДӨР</span><span>УТАС</span><span>ДАРААГИЙН АМРАЛТ</span><span>ГЭРЭЭ</span>
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 640 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
+              <span>АЖИЛТАН</span><span>ХЭЛТЭС</span><span>ТӨРСӨН ӨДӨР</span><span>УТАС</span><span>ДАРААГИЙН АМРАЛТ</span><span>ГЭРЭЭ</span>
+            </div>
+            {employees.map((e, i) => (
+              <button key={e.id} onClick={() => openEmployee(e.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Avatar name={e.name} photoUrl={e.photoUrl} size={26} />
+                  <span>
+                    <div style={{ fontWeight: 500 }}>{e.name}</div>
+                    <div style={{ color: "var(--muted)", fontSize: 11 }}>{e.title}</div>
+                  </span>
+                </span>
+                <span>{e.department || "—"}</span>
+                <span>{e.birthday || "—"}</span>
+                <span className="plex-mono">{e.phone || "—"}</span>
+                <span className="plex-mono">{e.nextLeaveCycleDate || "—"}</span>
+                <span style={{ color: e.contractStatus === "Гэрээтэй" ? "var(--teal)" : e.contractStatus ? "var(--rust)" : "var(--muted)", fontWeight: 600 }}>{e.contractStatus || "—"}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        {employees.map((e, i) => (
-          <button key={e.id} onClick={() => openEmployee(e.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avatar name={e.name} photoUrl={e.photoUrl} size={26} />
-              <span>
-                <div style={{ fontWeight: 500 }}>{e.name}</div>
-                <div style={{ color: "var(--muted)", fontSize: 11 }}>{e.title}</div>
-              </span>
-            </span>
-            <span>{e.department || "—"}</span>
-            <span>{e.birthday || "—"}</span>
-            <span className="plex-mono">{e.phone || "—"}</span>
-            <span className="plex-mono">{e.nextLeaveCycleDate || "—"}</span>
-            <span style={{ color: e.contractStatus === "Гэрээтэй" ? "var(--teal)" : e.contractStatus ? "var(--rust)" : "var(--muted)", fontWeight: 600 }}>{e.contractStatus || "—"}</span>
-          </button>
-        ))}
         {employees.length === 0 && <div style={{ padding: 20 }}><EmptyState>Ажилтан алга</EmptyState></div>}
       </div>
 

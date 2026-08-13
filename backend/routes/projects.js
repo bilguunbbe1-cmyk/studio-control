@@ -2,12 +2,35 @@ const express = require("express");
 const db = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { upload } = require("../lib/uploads");
-const { canManage, employeeById, deriveStatus, PROJECT_FILE_CATEGORIES } = require("../lib/helpers");
+const { canManage, employeeById, employeeIdForUser, deriveStatus, PROJECT_FILE_CATEGORIES } = require("../lib/helpers");
 
 const router = express.Router();
 router.use(requireAuth);
 
 const CAN_MANAGE = requireRole("ceo", "manager");
+
+function assertOwnsProject(req, res, project) {
+  if (req.user.role === "ceo") return true;
+  const myEmployeeId = employeeIdForUser(req.user.id);
+  if (myEmployeeId && project.owner_employee_id === myEmployeeId) return true;
+  res.status(403).json({ error: "Та зөвхөн өөрийн удирдаж буй төслийг засах эрхтэй" });
+  return false;
+}
+
+function projectForDeliverable(id) {
+  const d = db.prepare("SELECT project_id FROM deliverables WHERE id = ?").get(id);
+  return d && db.prepare("SELECT * FROM projects WHERE id = ?").get(d.project_id);
+}
+
+function projectForCostItem(id) {
+  const c = db.prepare("SELECT project_id FROM cost_line_items WHERE id = ?").get(id);
+  return c && db.prepare("SELECT * FROM projects WHERE id = ?").get(c.project_id);
+}
+
+function projectForReviewItem(id) {
+  const r = db.prepare("SELECT project_id FROM review_items WHERE id = ?").get(id);
+  return r && db.prepare("SELECT * FROM projects WHERE id = ?").get(r.project_id);
+}
 
 function costSummary(projectId) {
   const rows = db.prepare("SELECT amount, receipt_status FROM cost_line_items WHERE project_id = ?").all(projectId);
@@ -27,6 +50,7 @@ function shapeListItem(row, role) {
     name: row.name,
     client: row.client,
     lead: owner ? owner.name : row.lead,
+    ownerEmployeeId: row.owner_employee_id,
     status: row.status,
     progressPct: row.progress_pct,
     documentationPct: docs.pct,
@@ -163,6 +187,7 @@ router.patch("/projects/:id/spend", CAN_MANAGE, (req, res) => {
   const { delta } = req.body || {};
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
   if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
 
   let spent = project.spent + Number(delta || 0);
   spent = Math.max(0, spent);
@@ -176,6 +201,7 @@ router.patch("/projects/:id/spend", CAN_MANAGE, (req, res) => {
 router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
   if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
 
   const { name, client, ownerEmployeeId, contractAmount, dueDate } = req.body || {};
   if (name != null && !String(name).trim()) return res.status(400).json({ error: "name хоосон байж болохгүй" });
@@ -204,6 +230,7 @@ router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
 router.delete("/projects/:id", CAN_MANAGE, (req, res) => {
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
   if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   db.prepare("DELETE FROM projects WHERE id = ?").run(req.params.id);
   res.status(204).end();
 });
@@ -211,6 +238,9 @@ router.delete("/projects/:id", CAN_MANAGE, (req, res) => {
 // ---- Checklist ----
 router.patch("/projects/:id/checklist/:itemId", CAN_MANAGE, (req, res) => {
   const { complete } = req.body || {};
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   const item = db.prepare("SELECT * FROM checklist_items WHERE id = ? AND project_id = ?").get(req.params.itemId, req.params.id);
   if (!item) return res.status(404).json({ error: "Checklist зүйл олдсонгүй" });
   db.prepare("UPDATE checklist_items SET complete = ? WHERE id = ?").run(complete ? 1 : 0, item.id);
@@ -218,12 +248,18 @@ router.patch("/projects/:id/checklist/:itemId", CAN_MANAGE, (req, res) => {
 });
 
 router.post("/projects/:id/checklist/remind", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   const missing = db.prepare("SELECT COUNT(*) AS c FROM checklist_items WHERE project_id = ? AND complete = 0").get(req.params.id).c;
   res.json({ ok: true, remindedCount: missing });
 });
 
 // ---- Deliverables ----
 router.post("/projects/:id/deliverables", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   const { title, totalCount } = req.body || {};
   if (!title) return res.status(400).json({ error: "title шаардлагатай" });
   const info = db
@@ -234,9 +270,11 @@ router.post("/projects/:id/deliverables", CAN_MANAGE, (req, res) => {
 });
 
 router.patch("/deliverables/:id", CAN_MANAGE, (req, res) => {
-  const { title, doneCount, totalCount } = req.body || {};
   const d = db.prepare("SELECT * FROM deliverables WHERE id = ?").get(req.params.id);
   if (!d) return res.status(404).json({ error: "Deliverable олдсонгүй" });
+  const project = projectForDeliverable(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  const { title, doneCount, totalCount } = req.body || {};
   db.prepare("UPDATE deliverables SET title = ?, done_count = ?, total_count = ? WHERE id = ?").run(
     title ?? d.title,
     doneCount ?? d.done_count,
@@ -250,12 +288,17 @@ router.patch("/deliverables/:id", CAN_MANAGE, (req, res) => {
 router.delete("/deliverables/:id", CAN_MANAGE, (req, res) => {
   const d = db.prepare("SELECT * FROM deliverables WHERE id = ?").get(req.params.id);
   if (!d) return res.status(404).json({ error: "Deliverable олдсонгүй" });
+  const project = projectForDeliverable(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
   db.prepare("DELETE FROM deliverables WHERE id = ?").run(d.id);
   res.status(204).end();
 });
 
 // ---- Cost line items ----
 router.post("/projects/:id/cost-items", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   const { category, amount, receiptStatus } = req.body || {};
   if (!category || !amount) return res.status(400).json({ error: "category, amount шаардлагатай" });
   const info = db
@@ -266,18 +309,23 @@ router.post("/projects/:id/cost-items", CAN_MANAGE, (req, res) => {
 });
 
 router.patch("/cost-items/:id/receipt", CAN_MANAGE, (req, res) => {
+  const item = db.prepare("SELECT * FROM cost_line_items WHERE id = ?").get(req.params.id);
+  if (!item) return res.status(404).json({ error: "Зардлын мөр олдсонгүй" });
+  const project = projectForCostItem(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
   const { receiptStatus } = req.body || {};
   if (!["has_receipt", "no_receipt", "pending"].includes(receiptStatus)) {
     return res.status(400).json({ error: "receiptStatus буруу байна" });
   }
-  const item = db.prepare("SELECT * FROM cost_line_items WHERE id = ?").get(req.params.id);
-  if (!item) return res.status(404).json({ error: "Зардлын мөр олдсонгүй" });
   db.prepare("UPDATE cost_line_items SET receipt_status = ? WHERE id = ?").run(receiptStatus, item.id);
   res.json({ id: item.id, category: item.category, amount: item.amount, receiptStatus });
 });
 
 // ---- Review items ----
 router.post("/projects/:id/review-items", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   const { title, version, editorEmployeeId, reviewStatus } = req.body || {};
   if (!title) return res.status(400).json({ error: "title шаардлагатай" });
   const info = db
@@ -293,9 +341,11 @@ router.post("/projects/:id/review-items", CAN_MANAGE, (req, res) => {
 });
 
 router.patch("/review-items/:id", CAN_MANAGE, (req, res) => {
-  const { version, reviewStatus } = req.body || {};
   const item = db.prepare("SELECT * FROM review_items WHERE id = ?").get(req.params.id);
   if (!item) return res.status(404).json({ error: "Review зүйл олдсонгүй" });
+  const project = projectForReviewItem(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  const { version, reviewStatus } = req.body || {};
   db.prepare("UPDATE review_items SET version = ?, review_status = ? WHERE id = ?").run(
     version ?? item.version,
     reviewStatus ?? item.review_status,
@@ -311,6 +361,9 @@ router.get("/projects/:id/files", (req, res) => {
 });
 
 router.post("/projects/:id/files", CAN_MANAGE, upload.single("file"), (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
   if (!req.file) return res.status(400).json({ error: "file шаардлагатай" });
   const { category } = req.body || {};
   if (!PROJECT_FILE_CATEGORIES.includes(category)) return res.status(400).json({ error: "category буруу байна" });

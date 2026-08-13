@@ -90,18 +90,22 @@ export default function Finance() {
       <h2 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Төслийн ашиг</h2>
       <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 12 }}>НӨАТ-гүй тооцоо</div>
       <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden", marginBottom: 28 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
-          <span>ТӨСӨЛ</span><span>ОРЛОГО</span><span>ЗАРДАЛ</span><span>АШИГ</span><span>MARGIN</span>
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 520 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
+              <span>ТӨСӨЛ</span><span>ОРЛОГО</span><span>ЗАРДАЛ</span><span>АШИГ</span><span>MARGIN</span>
+            </div>
+            {projects.map((p, i) => (
+              <button key={p.id} onClick={() => openProject(p.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
+                <span style={{ fontWeight: 500 }}>{p.name}</span>
+                <span className="plex-mono">{fmtM(p.revenue)}</span>
+                <span className="plex-mono">{fmtM(p.cost)}</span>
+                <span className="plex-mono" style={{ color: "var(--teal)" }}>{fmtM(p.profit)}</span>
+                <span className="plex-mono">{p.marginPct}%</span>
+              </button>
+            ))}
+          </div>
         </div>
-        {projects.map((p, i) => (
-          <button key={p.id} onClick={() => openProject(p.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
-            <span style={{ fontWeight: 500 }}>{p.name}</span>
-            <span className="plex-mono">{fmtM(p.revenue)}</span>
-            <span className="plex-mono">{fmtM(p.cost)}</span>
-            <span className="plex-mono" style={{ color: "var(--teal)" }}>{fmtM(p.profit)}</span>
-            <span className="plex-mono">{p.marginPct}%</span>
-          </button>
-        ))}
         {projects.length === 0 && <div style={{ padding: 20 }}><EmptyState>Мэдээлэл алга</EmptyState></div>}
       </div>
 

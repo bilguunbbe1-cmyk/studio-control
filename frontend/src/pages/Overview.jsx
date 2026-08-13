@@ -95,7 +95,7 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
         <StatCard label="Нийт ашиг" value={fmtM(data.stats.totalProfit)} sub={`${data.stats.marginPct}% margin`} accent="var(--gold)" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+      <div className="responsive-2col">
         <section>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div>
@@ -104,23 +104,27 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
             </div>
           </div>
           <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
-              <span>ТӨСӨЛ</span><span>ЯВЦ</span><span>ТӨСӨВ</span><span>ТӨЛӨВ</span>
+            <div style={{ overflowX: "auto" }}>
+              <div style={{ minWidth: 480 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
+                  <span>ТӨСӨЛ</span><span>ЯВЦ</span><span>ТӨСӨВ</span><span>ТӨЛӨВ</span>
+                </div>
+                {data.projectControl.map((p, i) => {
+                  const meta = STATUS_META[p.status];
+                  return (
+                    <button key={p.id} onClick={() => onOpenProject(p.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center", fontSize: 12 }}>
+                      <span>
+                        <div style={{ fontWeight: 500 }}>{p.name}</div>
+                        <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.client} · {p.lead}</div>
+                      </span>
+                      <span className="plex-mono">{p.progressPct}%</span>
+                      <span className="plex-mono">{p.budgetSpentPct}% зарцуулсан</span>
+                      <span><span style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}>{meta.label}</span></span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            {data.projectControl.map((p, i) => {
-              const meta = STATUS_META[p.status];
-              return (
-                <button key={p.id} onClick={() => onOpenProject(p.id)} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", width: "100%", textAlign: "left", background: "transparent", padding: "12px 16px", borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center", fontSize: 12 }}>
-                  <span>
-                    <div style={{ fontWeight: 500 }}>{p.name}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.client} · {p.lead}</div>
-                  </span>
-                  <span className="plex-mono">{p.progressPct}%</span>
-                  <span className="plex-mono">{p.budgetSpentPct}% зарцуулсан</span>
-                  <span><span style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}>{meta.label}</span></span>
-                </button>
-              );
-            })}
           </div>
         </section>
 
@@ -237,7 +241,7 @@ function ManagerOverview({ data, onOpenProject, onPlanned }) {
         <StatCard label="Төсвийн эрсдэл" value={`${data.stats.budgetRiskPct}%`} sub="зарцуулсан" accent="var(--amber)" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+      <div className="responsive-2col">
         <section>
           <h2 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 4px" }}>Миний төслүүд</h2>
           <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 10 }}>Next action-аар эрэмбэлсэн</div>

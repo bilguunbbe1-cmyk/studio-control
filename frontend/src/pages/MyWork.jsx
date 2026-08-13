@@ -90,29 +90,33 @@ export default function MyWork({ user }) {
       </div>
 
       <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1.3fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
-          <span>АЖИЛ</span><span>ХАРИУЦАГЧ</span><span>ХУГАЦАА</span><span>ТӨЛӨВ</span><span></span>
-        </div>
-        {visible.map((t, i) => {
-          const meta = TASK_STATUS_META[t.status];
-          return (
-            <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1.3fr 1fr", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
-              <span style={{ fontWeight: 500 }}>{t.title}</span>
-              <span style={{ color: "var(--muted)" }}>
-                <div>{t.projectClient || t.projectName}</div>
-              </span>
-              <span className="plex-mono">{t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate || "—"}</span>
-              <span style={{ color: meta.color, fontWeight: 600, fontSize: 11 }}>{meta.label}</span>
-              <span style={{ textAlign: "right" }}>
-                {NEXT_STEP[t.status] && (
-                  <button onClick={() => advance(t)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--teal)", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
-                    {NEXT_STEP[t.status].label}
-                  </button>
-                )}
-              </span>
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 560 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1.3fr 1fr", padding: "10px 16px", color: "var(--muted)", fontSize: 10, borderBottom: "1px solid var(--line)" }}>
+              <span>АЖИЛ</span><span>ХАРИУЦАГЧ</span><span>ХУГАЦАА</span><span>ТӨЛӨВ</span><span></span>
             </div>
-          );
-        })}
+            {visible.map((t, i) => {
+              const meta = TASK_STATUS_META[t.status];
+              return (
+                <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1.3fr 1fr", padding: "12px 16px", fontSize: 12, borderTop: i > 0 ? "1px solid var(--line)" : "none", alignItems: "center" }}>
+                  <span style={{ fontWeight: 500 }}>{t.title}</span>
+                  <span style={{ color: "var(--muted)" }}>
+                    <div>{t.projectClient || t.projectName}</div>
+                  </span>
+                  <span className="plex-mono">{t.dueTime ? `${t.dueDate} ${t.dueTime}` : t.dueDate || "—"}</span>
+                  <span style={{ color: meta.color, fontWeight: 600, fontSize: 11 }}>{meta.label}</span>
+                  <span style={{ textAlign: "right" }}>
+                    {NEXT_STEP[t.status] && (
+                      <button onClick={() => advance(t)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--teal)", fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                        {NEXT_STEP[t.status].label}
+                      </button>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         {visible.length === 0 && <div style={{ padding: 20 }}><EmptyState>Ажил алга</EmptyState></div>}
       </div>
 

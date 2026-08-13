@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutGrid, FolderKanban, ListChecks, Clapperboard, Wallet, Users, Contact2, LogOut, X } from "lucide-react";
+import { LayoutGrid, FolderKanban, ListChecks, Clapperboard, Wallet, Users, Contact2, LogOut, X, Menu } from "lucide-react";
 import { ROLE_LABEL, Avatar } from "./components";
 import { api } from "./api";
 import { ShellContext } from "./shellContext";
@@ -22,6 +22,7 @@ export default function Shell({ user, onLogout }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
   const { openProject, openEmployee } = usePanels();
 
@@ -34,16 +35,22 @@ export default function Shell({ user, onLogout }) {
 
   return (
     <ShellContext.Provider value={shellValue}>
-      <div style={{ background: "var(--bg)", minHeight: "100vh", display: "flex" }} className="text-sm">
-        <aside style={{ background: "var(--panel)", borderRight: "1px solid var(--line)", width: 224 }} className="shrink-0 flex-col py-5 px-3 hidden md:flex">
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 8px", marginBottom: 28 }}>
-            <div style={{ background: "var(--gold)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 700, fontSize: 11 }} className="plex-mono">
-              PXL
+      <div className="app-shell">
+        <div className={`sidebar-overlay${navOpen ? " is-open" : ""}`} onClick={() => setNavOpen(false)} />
+        <aside className={`app-sidebar${navOpen ? " is-open" : ""}`}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px", marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ background: "var(--gold)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: 700, fontSize: 11 }} className="plex-mono">
+                PXL
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, lineHeight: 1.1 }}>PXL Consulting</div>
+                <div style={{ color: "var(--muted)", fontSize: 11 }}>Project Control</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: 600, lineHeight: 1.1 }}>PXL Consulting</div>
-              <div style={{ color: "var(--muted)", fontSize: 11 }}>Project Control</div>
-            </div>
+            <button onClick={() => setNavOpen(false)} className="mobile-only-close" style={{ background: "transparent", color: "var(--muted)" }}>
+              <X size={18} />
+            </button>
           </div>
 
           <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -52,6 +59,7 @@ export default function Shell({ user, onLogout }) {
                 key={item.to}
                 to={item.to}
                 end={item.to === "/"}
+                onClick={() => setNavOpen(false)}
                 style={({ isActive }) => ({
                   background: isActive ? "var(--panel2)" : "transparent",
                   color: isActive ? "var(--text)" : "var(--muted)",
@@ -81,9 +89,17 @@ export default function Shell({ user, onLogout }) {
           </div>
         </aside>
 
-        <main style={{ flex: 1, padding: "24px 32px", overflowY: "auto" }}>
-          <Outlet />
-        </main>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <div className="mobile-topbar">
+            <button onClick={() => setNavOpen(true)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", width: 34, height: 34, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Menu size={16} />
+            </button>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>PXL Consulting</div>
+          </div>
+          <main className="app-main">
+            <Outlet />
+          </main>
+        </div>
       </div>
 
       <SearchPopover
