@@ -100,6 +100,20 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     }
   }
 
+  async function addPayment() {
+    const amount = window.prompt("Клиентээс орж ирсэн дүн (₮):");
+    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) return;
+    const note = window.prompt("Тэмдэглэл (заавал биш):") || "";
+    try {
+      await api.addPayment(projectId, { amount: Number(amount), note });
+      toast("Орлого бүртгэгдлээ");
+      load();
+      emit("projects-changed");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function addReviewItem() {
     const title = window.prompt("Гарчиг:");
     if (!title) return;
@@ -238,7 +252,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           {tab === "plan" && <PlanTab project={project} canManage={canEdit} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
           {tab === "review" && <ReviewTab project={project} canManage={canEdit} onAdd={addReviewItem} />}
-          {tab === "finance" && <FinanceTab project={project} canEdit={canEdit} onReceipt={setReceipt} onAddCostItem={addCostItem} />}
+          {tab === "finance" && <FinanceTab project={project} canEdit={canEdit} onReceipt={setReceipt} onAddCostItem={addCostItem} onAddPayment={addPayment} />}
           {tab === "files" && <FilesTab project={project} canManage={canEdit} onUpload={uploadFile} />}
         </>
       )}
@@ -548,9 +562,10 @@ function CostItemRow({ c, canEdit, onReceipt }) {
   );
 }
 
-function FinanceTab({ project, canEdit, onReceipt, onAddCostItem }) {
+function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onAddPayment }) {
   const pending = project.costItems.filter((c) => c.receiptStatus !== "has_receipt");
   const documented = project.costItems.filter((c) => c.receiptStatus === "has_receipt");
+  const receivable = Math.max(0, project.contractAmount - project.received);
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
@@ -558,6 +573,31 @@ function FinanceTab({ project, canEdit, onReceipt, onAddCostItem }) {
         <Metric label="Нийт зардал" value={fmtM(project.spent)} />
         <Metric label="Gross profit" value={fmtM(project.grossProfit)} />
         <Metric label="Margin" value={`${project.marginPct}%`} />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Орлого</h3>
+        {canEdit && (
+          <button onClick={onAddPayment} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, padding: "6px 10px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Plus size={12} /> Орлого
+          </button>
+        )}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <Metric label="Орж ирсэн" value={fmtM(project.received)} />
+        <Metric label="Үлдэгдэл авлага" value={fmtM(receivable)} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+        {(project.payments || []).map((p) => (
+          <div key={p.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 500 }} className="plex-mono">{fmtM(p.amount)}</div>
+              {p.note && <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.note}</div>}
+            </div>
+            <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{p.receivedAt}</div>
+          </div>
+        ))}
+        {(!project.payments || project.payments.length === 0) && <EmptyState>Орлого бүртгэгдээгүй байна</EmptyState>}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>

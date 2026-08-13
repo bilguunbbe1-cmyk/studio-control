@@ -121,6 +121,16 @@ CREATE TABLE IF NOT EXISTS cost_line_items (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS client_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  amount REAL NOT NULL DEFAULT 0,
+  received_at TEXT NOT NULL,
+  note TEXT,
+  recorded_by_user_id INTEGER REFERENCES users(id),
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS review_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -361,6 +371,9 @@ if (employeeCount === 0) {
   const insertCostItem = db.prepare(
     "INSERT INTO cost_line_items (project_id, category, amount, receipt_status) VALUES (?,?,?,?)"
   );
+  const insertClientPayment = db.prepare(
+    "INSERT INTO client_payments (project_id, amount, received_at, note) VALUES (?,?,?,?)"
+  );
   const insertReviewItem = db.prepare(
     "INSERT INTO review_items (project_id, title, version, editor_employee_id, review_status) VALUES (?,?,?,?,?)"
   );
@@ -469,6 +482,8 @@ if (employeeCount === 0) {
     (COST_ITEMS_BY_PROJECT[p.code] || []).forEach(([category, amount, receipt]) => {
       insertCostItem.run(id, category, amount, receipt);
     });
+
+    insertClientPayment.run(id, Math.round(p.contract_amount * 0.708), "2026-08-01", "Урьдчилгаа төлбөр");
 
     (REVIEW_ITEMS_BY_PROJECT[p.code] || []).forEach(([title, version, editorName, status]) => {
       insertReviewItem.run(id, title, version, employeeIds[editorName] || null, status);

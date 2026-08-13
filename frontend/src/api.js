@@ -50,6 +50,7 @@ export const api = {
   updateDeliverable: (id, payload) => request(`/api/deliverables/${id}`, { method: "PATCH", body: payload }),
   deleteDeliverable: (id) => request(`/api/deliverables/${id}`, { method: "DELETE" }),
   addCostItem: (projectId, payload) => request(`/api/projects/${projectId}/cost-items`, { method: "POST", body: payload }),
+  addPayment: (projectId, payload) => request(`/api/projects/${projectId}/payments`, { method: "POST", body: payload }),
   addReviewItem: (projectId, payload) => request(`/api/projects/${projectId}/review-items`, { method: "POST", body: payload }),
   setCostReceipt: (id, receiptStatus) => request(`/api/cost-items/${id}/receipt`, { method: "PATCH", body: { receiptStatus } }),
   getProjectFiles: (projectId) => request(`/api/projects/${projectId}/files`),

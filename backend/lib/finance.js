@@ -19,10 +19,16 @@ function computeFinanceSummary(ownerEmployeeId) {
   const totalCost = costRows.reduce((s, c) => s + c.amount, 0);
   const documented = costRows.filter((c) => c.receipt_status === "has_receipt").reduce((s, c) => s + c.amount, 0);
 
-  // Collections aren't modeled as separate invoice/payment records yet, so approximate
-  // received vs. outstanding as a fixed ratio of contracted revenue.
-  const received = Math.round(contracted * 0.708);
-  const receivable = contracted - received;
+  const paymentRows = ownerEmployeeId
+    ? db
+        .prepare(
+          `SELECT cp.amount FROM client_payments cp
+           JOIN projects p ON p.id = cp.project_id WHERE p.owner_employee_id = ?`
+        )
+        .all(ownerEmployeeId)
+    : db.prepare("SELECT amount FROM client_payments").all();
+  const received = paymentRows.reduce((s, r) => s + r.amount, 0);
+  const receivable = Math.max(0, contracted - received);
   const overdueReceivable = Math.round(receivable * 0.36);
   const fixedCosts = Math.round(contracted * 0.197);
   const netProfit = contracted - spent - fixedCosts;

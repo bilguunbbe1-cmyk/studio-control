@@ -39,6 +39,11 @@ function costSummary(projectId) {
   return { total, documented, pct: total ? Math.round((documented / total) * 100) : 100 };
 }
 
+function paymentTotal(projectId) {
+  const r = db.prepare("SELECT SUM(amount) AS total FROM client_payments WHERE project_id = ?").get(projectId);
+  return r.total || 0;
+}
+
 function canSeeFinancials(req, row) {
   if (req.user.role === "ceo") return true;
   if (req.user.role === "production") return false;
@@ -117,6 +122,10 @@ function shapeDetail(row, req) {
     ? {
         grossProfit: row.contract_amount - row.spent,
         marginPct: row.contract_amount ? Math.round(((row.contract_amount - row.spent) / row.contract_amount) * 100) : 0,
+        received: paymentTotal(row.id),
+        payments: db
+          .prepare("SELECT id, amount, received_at AS receivedAt, note FROM client_payments WHERE project_id = ? ORDER BY received_at DESC")
+          .all(row.id),
       }
     : {};
 
@@ -298,6 +307,20 @@ router.delete("/deliverables/:id", CAN_MANAGE, (req, res) => {
   if (project && !assertOwnsProject(req, res, project)) return;
   db.prepare("DELETE FROM deliverables WHERE id = ?").run(d.id);
   res.status(204).end();
+});
+
+// ---- Client payments (money received from the client) ----
+router.post("/projects/:id/payments", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
+  const { amount, receivedAt, note } = req.body || {};
+  if (!amount || Number(amount) <= 0) return res.status(400).json({ error: "amount шаардлагатай" });
+  const info = db
+    .prepare("INSERT INTO client_payments (project_id, amount, received_at, note, recorded_by_user_id) VALUES (?,?,?,?,?)")
+    .run(req.params.id, Number(amount), receivedAt || new Date().toISOString().slice(0, 10), note || null, req.user.id);
+  const row = db.prepare("SELECT id, amount, received_at AS receivedAt, note FROM client_payments WHERE id = ?").get(info.lastInsertRowid);
+  res.status(201).json(row);
 });
 
 // ---- Cost line items ----
