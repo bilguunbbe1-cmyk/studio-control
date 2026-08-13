@@ -20,6 +20,8 @@ const PRODUCTION_TABS = [
   { value: "review", label: "Review" },
 ];
 
+const FULL_TABS_NO_FINANCE = FULL_TABS.filter((t) => t.value !== "finance");
+
 const FILE_CATEGORY_HINT = {
   Commercial: "Brief, үнийн санал",
   Contract: "Гэрээ, хавсралт",
@@ -39,9 +41,8 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const toast = useToast();
   const isProduction = user?.role === "production";
-  const canManage = user?.role === "ceo" || user?.role === "manager";
   const canEdit = user?.role === "ceo" || (user?.role === "manager" && project?.ownerEmployeeId === user?.employeeId);
-  const tabs = isProduction ? PRODUCTION_TABS : FULL_TABS;
+  const tabs = isProduction ? PRODUCTION_TABS : canEdit ? FULL_TABS : FULL_TABS_NO_FINANCE;
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -232,7 +233,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           <ErrorLine message={error} />
 
           {tab === "overview" && (
-            <OverviewTab project={project} canManage={canManage} canEdit={canEdit} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
+            <OverviewTab project={project} canEdit={canEdit} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
           )}
           {tab === "plan" && <PlanTab project={project} canManage={canEdit} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
@@ -326,7 +327,7 @@ function ChecklistGroup({ items, canManage, onToggle }) {
   );
 }
 
-function OverviewTab({ project, canManage, canEdit, onToggle, onRemind, onRequestPayment }) {
+function OverviewTab({ project, canEdit, onToggle, onRemind, onRequestPayment }) {
   const doneCount = project.checklist.filter((c) => c.complete).length;
   const pct = project.checklist.length ? Math.round((doneCount / project.checklist.length) * 100) : 0;
   const pending = project.checklist.filter((c) => !c.complete);
@@ -337,7 +338,7 @@ function OverviewTab({ project, canManage, canEdit, onToggle, onRemind, onReques
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
         <Metric label="Явц" value={`${project.progressPct}%`} />
         <Metric label="Үлдсэн ажил" value={project.nextTasks.length} />
-        {canManage && <Metric label="Зардал" value={fmtM(project.spent)} />}
+        {project.spent !== undefined && <Metric label="Зардал" value={fmtM(project.spent)} />}
         <Metric label="Баримт" value={`${project.documentationPct}%`} />
       </div>
 

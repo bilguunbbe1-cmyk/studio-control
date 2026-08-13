@@ -13,7 +13,6 @@ const FILTERS = [
 ];
 
 export default function Projects({ user }) {
-  const canManage = user.role === "ceo" || user.role === "manager";
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -83,7 +82,7 @@ export default function Projects({ user }) {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
                 <MiniStat label="Явц" value={`${p.progressPct}%`} />
-                {canManage && <MiniStat label="Зардал" value={fmtM(p.spent)} />}
+                {p.spent !== undefined && <MiniStat label="Зардал" value={fmtM(p.spent)} />}
                 <MiniStat label="Баримт" value={`${p.documentationPct}%`} />
               </div>
 

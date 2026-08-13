@@ -39,7 +39,14 @@ function costSummary(projectId) {
   return { total, documented, pct: total ? Math.round((documented / total) * 100) : 100 };
 }
 
-function shapeListItem(row, role) {
+function canSeeFinancials(req, row) {
+  if (req.user.role === "ceo") return true;
+  if (req.user.role === "production") return false;
+  const myEmployeeId = employeeIdForUser(req.user.id);
+  return !!myEmployeeId && row.owner_employee_id === myEmployeeId;
+}
+
+function shapeListItem(row, req) {
   const openTasks = db.prepare("SELECT COUNT(*) AS c FROM tasks WHERE project_id = ? AND status != 'done'").get(row.id).c;
   const owner = employeeById(row.owner_employee_id);
   const docs = costSummary(row.id);
@@ -57,7 +64,7 @@ function shapeListItem(row, role) {
     missingTasksCount: openTasks,
     dueDate: row.due_date,
   };
-  if (role === "production") return base;
+  if (!canSeeFinancials(req, row)) return base;
   return {
     ...base,
     contractAmount: row.contract_amount,
@@ -67,8 +74,8 @@ function shapeListItem(row, role) {
   };
 }
 
-function shapeDetail(row, role) {
-  const list = shapeListItem(row, role);
+function shapeDetail(row, req) {
+  const list = shapeListItem(row, req);
 
   const checklist = db
     .prepare("SELECT id, label, complete FROM checklist_items WHERE project_id = ? ORDER BY sort_order")
@@ -97,7 +104,7 @@ function shapeDetail(row, role) {
     .all(row.id);
 
   const costItemsRaw = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus FROM cost_line_items WHERE project_id = ?").all(row.id);
-  const costItems = role === "production" ? costItemsRaw.map((c) => ({ id: c.id, category: c.category, receiptStatus: c.receiptStatus })) : costItemsRaw;
+  const costItems = canSeeFinancials(req, row) ? costItemsRaw : costItemsRaw.map((c) => ({ id: c.id, category: c.category, receiptStatus: c.receiptStatus }));
 
   const fileFolders = PROJECT_FILE_CATEGORIES.map((category) => {
     const r = db.prepare("SELECT COUNT(*) AS c, SUM(CASE WHEN status = 'Дутуу' THEN 1 ELSE 0 END) AS missing FROM files WHERE owner_type = 'project' AND owner_id = ? AND category = ?").get(row.id, category);
@@ -106,13 +113,12 @@ function shapeDetail(row, role) {
 
   const blockers = db.prepare("SELECT id, description, resolved FROM blockers WHERE project_id = ?").all(row.id);
 
-  const financeExtra =
-    role === "production"
-      ? {}
-      : {
-          grossProfit: row.contract_amount - row.spent,
-          marginPct: row.contract_amount ? Math.round(((row.contract_amount - row.spent) / row.contract_amount) * 100) : 0,
-        };
+  const financeExtra = canSeeFinancials(req, row)
+    ? {
+        grossProfit: row.contract_amount - row.spent,
+        marginPct: row.contract_amount ? Math.round(((row.contract_amount - row.spent) / row.contract_amount) * 100) : 0,
+      }
+    : {};
 
   return {
     ...list,
@@ -143,7 +149,7 @@ router.get("/projects", (req, res) => {
     rows = rows.filter((p) => p.name.toLowerCase().includes(q) || (p.client || "").toLowerCase().includes(q));
   }
 
-  res.json(rows.map((p) => shapeListItem(p, req.user.role)));
+  res.json(rows.map((p) => shapeListItem(p, req)));
 });
 
 router.post("/projects", CAN_MANAGE, (req, res) => {
@@ -174,13 +180,13 @@ router.post("/projects", CAN_MANAGE, (req, res) => {
   CHECKLIST_LABELS.forEach((label, i) => insertChecklist.run(info.lastInsertRowid, label, i));
 
   const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(info.lastInsertRowid);
-  res.status(201).json(shapeDetail(row, req.user.role));
+  res.status(201).json(shapeDetail(row, req));
 });
 
 router.get("/projects/:id", (req, res) => {
   const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Төсөл олдсонгүй" });
-  res.json(shapeDetail(row, req.user.role));
+  res.json(shapeDetail(row, req));
 });
 
 router.patch("/projects/:id/spend", CAN_MANAGE, (req, res) => {
@@ -195,7 +201,7 @@ router.patch("/projects/:id/spend", CAN_MANAGE, (req, res) => {
 
   db.prepare("UPDATE projects SET spent = ?, status = ? WHERE id = ?").run(spent, status, project.id);
   const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(project.id);
-  res.json(shapeDetail(updated, req.user.role));
+  res.json(shapeDetail(updated, req));
 });
 
 router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
@@ -224,7 +230,7 @@ router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
   );
 
   const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(project.id);
-  res.json(shapeDetail(updated, req.user.role));
+  res.json(shapeDetail(updated, req));
 });
 
 router.delete("/projects/:id", CAN_MANAGE, (req, res) => {

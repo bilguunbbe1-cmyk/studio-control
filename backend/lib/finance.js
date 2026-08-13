@@ -1,11 +1,20 @@
 const db = require("../db");
 
-function computeFinanceSummary() {
-  const projects = db.prepare("SELECT * FROM projects").all();
+function computeFinanceSummary(ownerEmployeeId) {
+  const projects = ownerEmployeeId
+    ? db.prepare("SELECT * FROM projects WHERE owner_employee_id = ?").all(ownerEmployeeId)
+    : db.prepare("SELECT * FROM projects").all();
   const contracted = projects.reduce((s, p) => s + p.contract_amount, 0);
   const spent = projects.reduce((s, p) => s + p.spent, 0);
 
-  const costRows = db.prepare("SELECT amount, receipt_status FROM cost_line_items").all();
+  const costRows = ownerEmployeeId
+    ? db
+        .prepare(
+          `SELECT c.amount, c.receipt_status FROM cost_line_items c
+           JOIN projects p ON p.id = c.project_id WHERE p.owner_employee_id = ?`
+        )
+        .all(ownerEmployeeId)
+    : db.prepare("SELECT amount, receipt_status FROM cost_line_items").all();
   const undocumented = costRows.filter((c) => c.receipt_status === "no_receipt").reduce((s, c) => s + c.amount, 0);
   const totalCost = costRows.reduce((s, c) => s + c.amount, 0);
   const documented = costRows.filter((c) => c.receipt_status === "has_receipt").reduce((s, c) => s + c.amount, 0);
