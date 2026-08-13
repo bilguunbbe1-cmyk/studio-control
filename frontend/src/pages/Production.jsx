@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Plus, X } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
-import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast } from "../components";
+import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast, ConfirmDialog } from "../components";
 import PageHeader from "../components/PageHeader";
 import NewKanbanTaskModal from "../components/NewKanbanTaskModal";
 
@@ -11,6 +11,7 @@ export default function Production({ user }) {
   const [blockers, setBlockers] = useState([]);
   const [error, setError] = useState("");
   const [newTaskStage, setNewTaskStage] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
   const toast = useToast();
   const { openProject } = usePanels();
   const canManage = user.role === "ceo" || user.role === "manager";
@@ -38,14 +39,19 @@ export default function Production({ user }) {
     }
   }
 
-  async function removeTask(id, title) {
-    if (!window.confirm(`"${title}"-г устгах уу?`)) return;
-    try {
-      await api.deleteTask(id);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function removeTask(id, title) {
+    setConfirmState({
+      message: `"${title}"-г устгах уу?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deleteTask(id);
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function resolveBlocker(id) {
@@ -140,6 +146,9 @@ export default function Production({ user }) {
           onClose={() => setNewTaskStage(null)}
           onCreated={load}
         />
+      )}
+      {confirmState && (
+        <ConfirmDialog message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState(null)} />
       )}
     </div>
   );

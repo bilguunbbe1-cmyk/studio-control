@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, Check, Plus, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState, ConfirmDialog, FormModal } from "../components";
 import PaymentRequestModal from "./PaymentRequestModal";
 import { printProjectReport } from "../lib/printReport";
 
@@ -40,6 +40,8 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
+  const [formModal, setFormModal] = useState(null);
   const toast = useToast();
   const isProduction = user?.role === "production";
   const canEdit = user?.role === "ceo" || (user?.role === "manager" && project?.ownerEmployeeId === user?.employeeId);
@@ -76,54 +78,81 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     }
   }
 
-  async function deleteProject() {
-    if (!window.confirm(`"${project.name}" төслийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
-    try {
-      await api.deleteProject(projectId);
-      toast("Төсөл устгагдлаа");
-      emit("projects-changed");
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    }
+  function deleteProject() {
+    setConfirmState({
+      message: `"${project.name}" төслийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deleteProject(projectId);
+          toast("Төсөл устгагдлаа");
+          emit("projects-changed");
+          onClose();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
-  async function addCostItem() {
-    const category = window.prompt("Зардлын ангилал:");
-    if (!category) return;
-    const amount = window.prompt("Дүн (₮):");
-    if (!amount || Number.isNaN(Number(amount))) return;
-    try {
-      await api.addCostItem(projectId, { category, amount: Number(amount), receiptStatus: "pending" });
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function addCostItem() {
+    setFormModal({
+      title: "Зардал нэмэх",
+      fields: [
+        { key: "category", label: "Зардлын ангилал" },
+        { key: "amount", label: "Дүн (₮)", type: "number" },
+      ],
+      onSubmit: async (v) => {
+        if (!v.category || !v.amount || Number.isNaN(Number(v.amount))) return;
+        setFormModal(null);
+        try {
+          await api.addCostItem(projectId, { category: v.category, amount: Number(v.amount), receiptStatus: "pending" });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
-  async function addPayment() {
-    const amount = window.prompt("Клиентээс орж ирсэн дүн (₮):");
-    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) return;
-    const note = window.prompt("Тэмдэглэл (заавал биш):") || "";
-    try {
-      await api.addPayment(projectId, { amount: Number(amount), note });
-      toast("Орлого бүртгэгдлээ");
-      load();
-      emit("projects-changed");
-    } catch (err) {
-      setError(err.message);
-    }
+  function addPayment() {
+    setFormModal({
+      title: "Орлого бүртгэх",
+      fields: [
+        { key: "amount", label: "Клиентээс орж ирсэн дүн (₮)", type: "number" },
+        { key: "note", label: "Тэмдэглэл", required: false },
+      ],
+      submitLabel: "Бүртгэх",
+      onSubmit: async (v) => {
+        if (!v.amount || Number.isNaN(Number(v.amount)) || Number(v.amount) <= 0) return;
+        setFormModal(null);
+        try {
+          await api.addPayment(projectId, { amount: Number(v.amount), note: v.note });
+          toast("Орлого бүртгэгдлээ");
+          load();
+          emit("projects-changed");
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
-  async function addReviewItem() {
-    const title = window.prompt("Гарчиг:");
-    if (!title) return;
-    try {
-      await api.addReviewItem(projectId, { title, version: "v01", reviewStatus: "editing" });
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function addReviewItem() {
+    setFormModal({
+      title: "Review нэмэх",
+      fields: [{ key: "title", label: "Гарчиг" }],
+      onSubmit: async (v) => {
+        if (!v.title) return;
+        setFormModal(null);
+        try {
+          await api.addReviewItem(projectId, { title: v.title, version: "v01", reviewStatus: "editing" });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function bumpDeliverable(d, delta) {
@@ -136,27 +165,39 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     }
   }
 
-  async function editDeliverable(d) {
-    const title = window.prompt("Deliverable нэр:", d.title);
-    if (!title) return;
-    const totalCount = window.prompt("Нийт тоо:", d.totalCount);
-    if (!totalCount || Number.isNaN(Number(totalCount))) return;
-    try {
-      await api.updateDeliverable(d.id, { title, totalCount: Number(totalCount) });
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function editDeliverable(d) {
+    setFormModal({
+      title: "Deliverable засах",
+      fields: [
+        { key: "title", label: "Deliverable нэр", defaultValue: d.title },
+        { key: "totalCount", label: "Нийт тоо", type: "number", defaultValue: d.totalCount },
+      ],
+      onSubmit: async (v) => {
+        if (!v.title || !v.totalCount || Number.isNaN(Number(v.totalCount))) return;
+        setFormModal(null);
+        try {
+          await api.updateDeliverable(d.id, { title: v.title, totalCount: Number(v.totalCount) });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
-  async function removeDeliverable(d) {
-    if (!window.confirm(`"${d.title}"-г устгах уу?`)) return;
-    try {
-      await api.deleteDeliverable(d.id);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function removeDeliverable(d) {
+    setConfirmState({
+      message: `"${d.title}"-г устгах уу?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deleteDeliverable(d.id);
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function toggleChecklist(item) {
@@ -177,17 +218,24 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     }
   }
 
-  async function addDeliverable() {
-    const title = window.prompt("Deliverable нэр:");
-    if (!title) return;
-    const totalCount = window.prompt("Нийт тоо (жишээ нь Reel-ийн ширхэг):", "1");
-    if (!totalCount || Number.isNaN(Number(totalCount)) || Number(totalCount) < 1) return;
-    try {
-      await api.addDeliverable(projectId, { title, totalCount: Number(totalCount) });
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function addDeliverable() {
+    setFormModal({
+      title: "Deliverable нэмэх",
+      fields: [
+        { key: "title", label: "Deliverable нэр" },
+        { key: "totalCount", label: "Нийт тоо (жишээ нь Reel-ийн ширхэг)", type: "number", defaultValue: "1" },
+      ],
+      onSubmit: async (v) => {
+        if (!v.title || !v.totalCount || Number.isNaN(Number(v.totalCount)) || Number(v.totalCount) < 1) return;
+        setFormModal(null);
+        try {
+          await api.addDeliverable(projectId, { title: v.title, totalCount: Number(v.totalCount) });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function setReceipt(id, receiptStatus) {
@@ -261,6 +309,18 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
         </>
       )}
       {showPaymentRequest && <PaymentRequestModal projectId={projectId} onClose={() => setShowPaymentRequest(false)} />}
+      {confirmState && (
+        <ConfirmDialog message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState(null)} />
+      )}
+      {formModal && (
+        <FormModal
+          title={formModal.title}
+          fields={formModal.fields}
+          submitLabel={formModal.submitLabel}
+          onSubmit={formModal.onSubmit}
+          onCancel={() => setFormModal(null)}
+        />
+      )}
     </SlideOver>
   );
 }

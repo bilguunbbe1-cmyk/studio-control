@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, MoreHorizontal, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState, Avatar } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState, Avatar, ConfirmDialog, FormModal } from "../components";
 
 const FULL_TABS = [
   { value: "general", label: "Ерөнхий" },
@@ -20,6 +20,8 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [grantingLogin, setGrantingLogin] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
+  const [formModal, setFormModal] = useState(null);
   const toast = useToast();
   const isCeo = user?.role === "ceo";
 
@@ -66,16 +68,21 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
     }
   }
 
-  async function deleteEmployee() {
-    if (!window.confirm(`"${employee.name}"-ийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`)) return;
-    try {
-      await api.deleteEmployee(employeeId);
-      toast("Ажилтан устгагдлаа");
-      emit("employees-changed");
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    }
+  function deleteEmployee() {
+    setConfirmState({
+      message: `"${employee.name}"-ийг устгах уу? Энэ үйлдлийг буцаах боломжгүй.`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deleteEmployee(employeeId);
+          toast("Ажилтан устгагдлаа");
+          emit("employees-changed");
+          onClose();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function planLeave() {
@@ -88,16 +95,26 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
     }
   }
 
-  async function submitBirthday() {
-    const value = window.prompt("Төрсөн өдөр (сар-өдөр, ж: 09-18):");
-    if (!value || !/^\d{1,2}-\d{1,2}$/.test(value)) return;
-    const [month, day] = value.split("-");
-    try {
-      await api.setEmployeeBirthday(employeeId, month, day);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function submitBirthday() {
+    setFormModal({
+      title: "Төрсөн өдөр оруулах",
+      fields: [
+        { key: "month", label: "Сар (1-12)", type: "number" },
+        { key: "day", label: "Өдөр (1-31)", type: "number" },
+      ],
+      onSubmit: async (v) => {
+        const month = Number(v.month);
+        const day = Number(v.day);
+        if (!month || !day || month < 1 || month > 12 || day < 1 || day > 31) return;
+        setFormModal(null);
+        try {
+          await api.setEmployeeBirthday(employeeId, month, day);
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   async function uploadFile(category, file) {
@@ -189,6 +206,18 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           {canSeeFull && tab === "salary" && <SalaryTab employee={employee} />}
           {canSeeFull && tab === "files" && <FilesTab employee={employee} isCeo={isCeo} onUpload={uploadFile} />}
         </>
+      )}
+      {confirmState && (
+        <ConfirmDialog message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState(null)} />
+      )}
+      {formModal && (
+        <FormModal
+          title={formModal.title}
+          fields={formModal.fields}
+          submitLabel={formModal.submitLabel}
+          onSubmit={formModal.onSubmit}
+          onCancel={() => setFormModal(null)}
+        />
       )}
     </SlideOver>
   );

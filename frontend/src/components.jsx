@@ -94,6 +94,55 @@ export function FieldRow({ label, value, onChange, type = "text", options, requi
   );
 }
 
+export function ConfirmDialog({ title = "Устгах уу?", message, confirmLabel = "Устгах", danger = true, onConfirm, onCancel }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "#00000099", zIndex: 95 }}>
+      <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 340 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 8px" }}>{title}</h3>
+        <p style={{ color: "var(--muted)", fontSize: 12, margin: "0 0 16px" }}>{message}</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
+          <button type="button" onClick={onConfirm} style={{ background: danger ? "var(--rust)" : "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FormModal({ title, fields, submitLabel = "Хадгалах", onCancel, onSubmit }) {
+  const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.key, f.defaultValue ?? ""])));
+  return (
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "#00000099", zIndex: 95, overflowY: "auto" }}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(values);
+        }}
+        style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 360, margin: "20px 0" }}
+      >
+        <h3 style={{ fontSize: 14, fontWeight: 600, margin: "0 0 16px" }}>{title}</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          {fields.map((f) => (
+            <FieldRow
+              key={f.key}
+              label={f.label}
+              type={f.type || "text"}
+              options={f.options}
+              value={values[f.key]}
+              onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
+              required={f.required !== false}
+            />
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onCancel} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", flex: 1, padding: "9px 0", borderRadius: 8, fontSize: 12 }}>Цуцлах</button>
+          <button type="submit" style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}>{submitLabel}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export const BADGE_TINTS = {
   "var(--teal)": "#e7f6ef",
   "var(--amber)": "#fff2d8",
