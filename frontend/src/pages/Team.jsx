@@ -29,7 +29,7 @@ export default function Team() {
       <PageHeader title="Баг" subtitle="2026 оны 8-р сар" />
       <div style={{ marginTop: -12, marginBottom: 20 }}>
         <h2 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Багийн ачаалал</h2>
-        <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>Task-ийн тоо биш, complexity болон төлөвлөсөн цагаар.</p>
+        <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>Идэвхтэй ажлын тоогоор автоматаар тооцоолсон.</p>
       </div>
 
       <ErrorBanner message={error} />
