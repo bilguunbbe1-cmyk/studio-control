@@ -105,13 +105,15 @@ router.patch("/tasks/:id/status", (req, res) => {
   res.json(shapeTask(row));
 });
 
-router.patch("/tasks/:id/stage", CAN_MANAGE, (req, res) => {
-  const { stage } = req.body || {};
+router.patch("/tasks/:id/stage", (req, res) => {
+  const { stage, assigneeEmployeeId } = req.body || {};
   if (!STAGE_VALUES.includes(stage)) return res.status(400).json({ error: "stage буруу байна" });
   const task = db.prepare("SELECT * FROM tasks WHERE id = ?").get(req.params.id);
   if (!task) return res.status(404).json({ error: "Даалгавар олдсонгүй" });
+  if (!assertCanTouch(req, res, task)) return;
 
-  db.prepare("UPDATE tasks SET stage = ? WHERE id = ?").run(stage, task.id);
+  const nextAssignee = assigneeEmployeeId !== undefined ? assigneeEmployeeId || null : task.assignee_employee_id;
+  db.prepare("UPDATE tasks SET stage = ?, assignee_employee_id = ? WHERE id = ?").run(stage, nextAssignee, task.id);
   const row = db.prepare(`${baseQuery()} WHERE t.id = ?`).get(task.id);
   res.json(shapeTask(row));
 });

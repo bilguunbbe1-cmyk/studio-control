@@ -2,16 +2,20 @@ import { useEffect, useState, useCallback } from "react";
 import { AlertTriangle, Plus, X } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
-import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast, ConfirmDialog } from "../components";
+import { STAGE_META, STAGE_ORDER, ErrorBanner, EmptyState, useToast, ConfirmDialog, FormModal } from "../components";
 import PageHeader from "../components/PageHeader";
 import NewKanbanTaskModal from "../components/NewKanbanTaskModal";
+
+const STAGE_OPTIONS = STAGE_ORDER.map((s) => ({ value: s, label: STAGE_META[s].label }));
 
 export default function Production({ user }) {
   const [tasks, setTasks] = useState([]);
   const [blockers, setBlockers] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [error, setError] = useState("");
   const [newTaskStage, setNewTaskStage] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
+  const [moveModal, setMoveModal] = useState(null);
   const toast = useToast();
   const { openProject } = usePanels();
   const canManage = user.role === "ceo" || user.role === "manager";
@@ -28,15 +32,38 @@ export default function Production({ user }) {
 
   useEffect(() => {
     load();
+    api.getEmployees().then(setEmployees).catch(() => {});
   }, [load]);
 
-  async function move(id, stage) {
-    try {
-      await api.updateTaskStage(id, stage);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
+  function openMoveModal(t) {
+    const idx = STAGE_ORDER.indexOf(t.stage);
+    const nextStage = STAGE_ORDER[idx + 1] || t.stage;
+    setMoveModal({
+      taskId: t.id,
+      fields: [
+        { key: "stage", label: "Шат", options: STAGE_OPTIONS, defaultValue: nextStage },
+        {
+          key: "assigneeEmployeeId",
+          label: "Хариуцагч (шилжүүлэх бол сонгоно уу)",
+          options: employees.map((e) => ({ value: String(e.id), label: e.name })),
+          defaultValue: t.assigneeEmployeeId ? String(t.assigneeEmployeeId) : "",
+          required: false,
+        },
+      ],
+      submitLabel: "Шилжүүлэх",
+      onSubmit: async (v) => {
+        setMoveModal(null);
+        try {
+          await api.updateTaskStage(t.id, {
+            stage: v.stage,
+            assigneeEmployeeId: v.assigneeEmployeeId ? Number(v.assigneeEmployeeId) : null,
+          });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
   }
 
   function removeTask(id, title) {
@@ -64,7 +91,7 @@ export default function Production({ user }) {
     }
   }
 
-  const canTouch = (t) => user.role !== "production" || t.assigneeEmployeeId != null;
+  const canTouch = (t) => user.role !== "production" || t.assigneeEmployeeId === user.employeeId;
 
   return (
     <div>
@@ -119,12 +146,10 @@ export default function Production({ user }) {
                       {t.version ? ` · ${t.version}` : t.checklistTotal != null ? ` · Checklist ${t.checklistDone}/${t.checklistTotal}` : t.dueDate ? ` · ${t.dueDate}` : ""}
                     </div>
                     {(canManage || canTouch(t)) && (
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
-                        {STAGE_ORDER.filter((s) => s !== stage).slice(0, 2).map((s) => (
-                          <button key={s} onClick={() => move(t.id, s)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--muted)", fontSize: 9, padding: "3px 6px", borderRadius: 5 }}>
-                            → {STAGE_META[s].label}
-                          </button>
-                        ))}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => openMoveModal(t)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 10, fontWeight: 600, padding: "5px 10px", borderRadius: 6 }}>
+                          Шилжүүлэх →
+                        </button>
                       </div>
                     )}
                   </div>
@@ -149,6 +174,15 @@ export default function Production({ user }) {
       )}
       {confirmState && (
         <ConfirmDialog message={confirmState.message} onConfirm={confirmState.onConfirm} onCancel={() => setConfirmState(null)} />
+      )}
+      {moveModal && (
+        <FormModal
+          title="Ажлыг шилжүүлэх"
+          fields={moveModal.fields}
+          submitLabel={moveModal.submitLabel}
+          onSubmit={moveModal.onSubmit}
+          onCancel={() => setMoveModal(null)}
+        />
       )}
     </div>
   );

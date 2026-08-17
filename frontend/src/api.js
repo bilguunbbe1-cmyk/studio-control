@@ -64,7 +64,7 @@ export const api = {
   getTasks: (params) => request(`/api/tasks${qs(params)}`),
   createTask: (payload) => request("/api/tasks", { method: "POST", body: payload }),
   updateTaskStatus: (id, status) => request(`/api/tasks/${id}/status`, { method: "PATCH", body: { status } }),
-  updateTaskStage: (id, stage) => request(`/api/tasks/${id}/stage`, { method: "PATCH", body: { stage } }),
+  updateTaskStage: (id, payload) => request(`/api/tasks/${id}/stage`, { method: "PATCH", body: payload }),
   submitForReview: (id) => request(`/api/tasks/${id}/submit-for-review`, { method: "POST" }),
   deleteTask: (id) => request(`/api/tasks/${id}`, { method: "DELETE" }),
 
