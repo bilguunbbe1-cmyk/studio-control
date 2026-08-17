@@ -1,8 +1,14 @@
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
 const bcrypt = require("bcryptjs");
 
-const db = new Database(path.join(__dirname, "data.sqlite"));
+// DB_PATH lets a persistent disk (e.g. Render) survive redeploys — point it at the
+// disk's mount path (e.g. /var/data/data.sqlite). Falls back to the local file when unset.
+const dbPath = process.env.DB_PATH || path.join(__dirname, "data.sqlite");
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
