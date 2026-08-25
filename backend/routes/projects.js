@@ -166,7 +166,11 @@ router.post("/projects", CAN_MANAGE, (req, res) => {
   if (!name || !contractAmount) return res.status(400).json({ error: "name, contractAmount шаардлагатай" });
 
   const owner = ownerEmployeeId ? employeeById(ownerEmployeeId) : null;
-  const nextCode = `VP-${30000 + db.prepare("SELECT COUNT(*) AS c FROM projects").get().c}`;
+  // Derived from the highest code ever issued (not a row count), so it stays unique even
+  // after projects are deleted -- a count-based suffix would eventually collide and violate
+  // the UNIQUE constraint on code once any project had ever been removed.
+  const maxCodeNum = db.prepare("SELECT MAX(CAST(SUBSTR(code, 4) AS INTEGER)) AS n FROM projects WHERE code LIKE 'VP-%'").get().n || 29999;
+  const nextCode = `VP-${maxCodeNum + 1}`;
 
   const info = db
     .prepare(
