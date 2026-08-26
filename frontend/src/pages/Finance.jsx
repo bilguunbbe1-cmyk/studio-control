@@ -5,7 +5,8 @@ import { onEvent, emit } from "../bus";
 import { fmt, fmtM, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
 
-export default function Finance() {
+export default function Finance({ user }) {
+  const isCeo = user?.role === "ceo";
   const [summary, setSummary] = useState(null);
   const [projects, setProjects] = useState([]);
   const [undocumented, setUndocumented] = useState([]);
@@ -20,7 +21,7 @@ export default function Finance() {
         api.getFinanceSummary(),
         api.getFinanceProjects(),
         api.getUndocumentedExpenses(),
-        api.getPaymentRequests("pending"),
+        isCeo ? api.getPaymentRequests("pending") : Promise.resolve([]),
       ]);
       setSummary(s);
       setProjects(p);
@@ -29,7 +30,7 @@ export default function Finance() {
     } catch (err) {
       setError(err.message);
     }
-  }, []);
+  }, [isCeo]);
 
   useEffect(() => {
     load();

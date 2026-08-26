@@ -53,7 +53,7 @@ export default function App() {
             <Route path="production" element={<Production user={user} />} />
             <Route
               path="finance"
-              element={canManage ? <Finance /> : <Navigate to="/" replace />}
+              element={canManage ? <Finance user={user} /> : <Navigate to="/" replace />}
             />
             <Route path="team" element={<Team user={user} />} />
             <Route path="employees" element={<Employees user={user} />} />

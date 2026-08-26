@@ -6,7 +6,7 @@ const { deriveStatus } = require("../lib/helpers");
 const router = express.Router();
 router.use(requireAuth);
 
-const CAN_MANAGE = requireRole("ceo", "manager");
+const CEO_ONLY = requireRole("ceo");
 
 function shapeRow(r) {
   return {
@@ -56,13 +56,13 @@ router.get("/payment-requests/mine", (req, res) => {
   res.json(rows.map(shapeRow));
 });
 
-router.get("/payment-requests", CAN_MANAGE, (req, res) => {
+router.get("/payment-requests", CEO_ONLY, (req, res) => {
   const status = req.query.status || "pending";
   const rows = db.prepare(`${baseQuery()} WHERE pr.status = ? ORDER BY pr.created_at ASC`).all(status);
   res.json(rows.map(shapeRow));
 });
 
-router.post("/payment-requests/:id/pay", CAN_MANAGE, (req, res) => {
+router.post("/payment-requests/:id/pay", CEO_ONLY, (req, res) => {
   const pr = db.prepare("SELECT * FROM payment_requests WHERE id = ?").get(req.params.id);
   if (!pr) return res.status(404).json({ error: "Хүсэлт олдсонгүй" });
   if (pr.status === "paid") return res.status(400).json({ error: "Энэ хүсэлт аль хэдийн төлөгдсөн байна" });
