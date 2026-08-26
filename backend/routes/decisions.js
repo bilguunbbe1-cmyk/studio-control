@@ -44,12 +44,21 @@ router.post("/decisions", CAN_MANAGE, (req, res) => {
 function decide(req, res, decision) {
   const row = db.prepare("SELECT * FROM approvals WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Хүсэлт олдсонгүй" });
+  if (row.kind === "finish" && req.user.role !== "ceo") {
+    return res.status(403).json({ error: "Төсөл дуусгахыг зөвхөн CEO баталгаажуулна" });
+  }
 
   db.prepare("UPDATE approvals SET status = ?, decided_by = ?, decided_at = CURRENT_TIMESTAMP WHERE id = ?").run(
     decision,
     req.user.id,
     row.id
   );
+
+  if (decision === "approved" && row.kind === "finish" && row.project_id) {
+    const completedAt = row.reason || new Date().toISOString().slice(0, 10);
+    db.prepare("UPDATE projects SET completed_at = ? WHERE id = ?").run(completedAt, row.project_id);
+  }
+
   const updated = db.prepare(`${baseQuery()} WHERE a.id = ?`).get(row.id);
   res.json(shapeDecision(updated));
 }

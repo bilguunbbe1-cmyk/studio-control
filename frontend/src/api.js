@@ -42,6 +42,7 @@ export const api = {
   getProject: (id) => request(`/api/projects/${id}`),
   updateProject: (id, payload) => request(`/api/projects/${id}`, { method: "PATCH", body: payload }),
   deleteProject: (id) => request(`/api/projects/${id}`, { method: "DELETE" }),
+  requestFinishProject: (id, completedAt) => request(`/api/projects/${id}/request-finish`, { method: "POST", body: { completedAt } }),
   adjustSpend: (id, delta) => request(`/api/projects/${id}/spend`, { method: "PATCH", body: { delta } }),
   toggleChecklistItem: (projectId, itemId, complete) =>
     request(`/api/projects/${projectId}/checklist/${itemId}`, { method: "PATCH", body: { complete } }),

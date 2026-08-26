@@ -95,6 +95,27 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     });
   }
 
+  function finishProject() {
+    const today = new Date().toISOString().slice(0, 10);
+    setFormModal({
+      title: "Төсөл дуусгах",
+      fields: [{ key: "completedAt", label: "Дууссан огноо", type: "date", defaultValue: today }],
+      submitLabel: user?.role === "ceo" ? "Дуусгах" : "CEO-д илгээх",
+      onSubmit: async (v) => {
+        if (!v.completedAt) return;
+        setFormModal(null);
+        try {
+          const res = await api.requestFinishProject(projectId, v.completedAt);
+          toast(res.immediate ? "Төсөл дууслаа" : "CEO-д шийдвэрлүүлэхээр илгээгдлээ");
+          load();
+          emit("projects-changed");
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
   function addCostItem() {
     setFormModal({
       title: "Зардал нэмэх",
@@ -290,16 +311,25 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
               <button onClick={onClose} style={{ background: "transparent" }}><X size={18} color="var(--muted)" /></button>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{project.name}</h2>
-            <Badge color={STATUS_META[project.status].color}>{STATUS_META[project.status].label}</Badge>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{project.name}</h2>
+              {project.completedAt ? (
+                <Badge color="var(--teal)">Дууссан</Badge>
+              ) : (
+                <Badge color={STATUS_META[project.status].color}>{STATUS_META[project.status].label}</Badge>
+              )}
+            </div>
+            <button onClick={() => setShowPaymentRequest(true)} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8 }}>
+              ₮ Гүйлгээ хүсэх
+            </button>
           </div>
 
           <TabBar tabs={tabs} active={tab} onChange={setTab} />
           <ErrorLine message={error} />
 
           {tab === "overview" && (
-            <OverviewTab project={project} canEdit={canEdit} onToggle={toggleChecklist} onRemind={remind} onRequestPayment={() => setShowPaymentRequest(true)} />
+            <OverviewTab project={project} canEdit={canEdit} onToggle={toggleChecklist} onRemind={remind} onFinish={finishProject} />
           )}
           {tab === "plan" && <PlanTab project={project} canManage={canEdit} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
@@ -405,7 +435,7 @@ function ChecklistGroup({ items, canManage, onToggle }) {
   );
 }
 
-function OverviewTab({ project, canEdit, onToggle, onRemind, onRequestPayment }) {
+function OverviewTab({ project, canEdit, onToggle, onRemind, onFinish }) {
   const doneCount = project.checklist.filter((c) => c.complete).length;
   const pct = project.checklist.length ? Math.round((doneCount / project.checklist.length) * 100) : 0;
   const pending = project.checklist.filter((c) => !c.complete);
@@ -447,9 +477,16 @@ function OverviewTab({ project, canEdit, onToggle, onRemind, onRequestPayment })
         {project.nextTasks.length === 0 && <EmptyState>Одоогоор ажил алга</EmptyState>}
       </div>
 
-      <button onClick={onRequestPayment} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8, width: "100%" }}>
-        ₮ Гүйлгээ хүсэх
-      </button>
+      {canEdit && !project.completedAt && (
+        <button onClick={onFinish} style={{ background: "var(--teal)", color: "#ffffff", fontSize: 11, fontWeight: 600, padding: "9px 12px", borderRadius: 8, width: "100%" }}>
+          ✓ Дуусгах
+        </button>
+      )}
+      {project.completedAt && (
+        <div style={{ background: "var(--panel2)", border: "1px dashed var(--line)", borderRadius: 8, padding: 12, fontSize: 12, color: "var(--muted)", textAlign: "center" }}>
+          Энэ төсөл {project.completedAt} өдөр дууссан гэж баталгаажсан.
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Check, X, AlertTriangle, Wallet, Receipt, PlusCircle } from "lucide-react";
+import { Check, X, AlertTriangle, Wallet, Receipt, PlusCircle, CheckCircle2 } from "lucide-react";
 import { api } from "../api";
 import { usePanels } from "../panels";
-import { onEvent } from "../bus";
+import { onEvent, emit } from "../bus";
 import { fmt, fmtM, STATUS_META, BADGE_TINTS, Gauge, StatCard, ErrorBanner, EmptyState, useToast } from "../components";
 import PageHeader from "../components/PageHeader";
 import Production from "./Production";
@@ -12,6 +12,7 @@ const DECISION_META = {
   flag: { icon: AlertTriangle, color: "var(--rust)", label: "Дүрэм зөрчиж эхлүүлэх" },
   expense: { icon: Receipt, color: "var(--teal)", label: "Зардал батлах" },
   scope: { icon: PlusCircle, color: "var(--gold)", label: "Scope change" },
+  finish: { icon: CheckCircle2, color: "var(--teal)", label: "Төсөл дуусгах" },
 };
 
 export default function Overview({ user }) {
@@ -69,6 +70,7 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
       setLog((prev) => [{ id, action }, ...prev].slice(0, 3));
       toast(action === "approved" ? "Зөвшөөрлөө" : "Татгалзлаа");
       onDecided();
+      if (kind === "finish") emit("projects-changed");
     } catch (err) {
       toast(err.message);
     }
@@ -146,6 +148,8 @@ function CeoOverview({ data, onOpenProject, onDecided }) {
                         <div style={{ fontSize: 12, fontWeight: 500, lineHeight: 1.4 }}>{d.title}</div>
                         {d.amount != null ? (
                           <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }} className="plex-mono">₮{fmt(d.amount)}</div>
+                        ) : d.kind === "finish" && d.reason ? (
+                          <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }} className="plex-mono">Санал болгосон огноо: {d.reason}</div>
                         ) : d.reason ? (
                           <div style={{ color: "var(--muted)", fontSize: 11, marginTop: 2 }}>{d.reason}</div>
                         ) : null}

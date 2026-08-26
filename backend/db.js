@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS projects (
   shoot_date TEXT,
   call_sheet_done INTEGER,
   call_sheet_total INTEGER,
+  completed_at TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -229,6 +230,13 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `);
+
+// Idempotent migration: CREATE TABLE IF NOT EXISTS above never adds columns to an
+// already-existing table, so a column added later needs to be backfilled explicitly.
+const projectColumns = db.prepare("PRAGMA table_info(projects)").all().map((c) => c.name);
+if (!projectColumns.includes("completed_at")) {
+  db.exec("ALTER TABLE projects ADD COLUMN completed_at TEXT");
+}
 
 const employeeCount = db.prepare("SELECT COUNT(*) AS c FROM employees").get().c;
 

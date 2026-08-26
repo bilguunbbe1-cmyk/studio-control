@@ -68,6 +68,7 @@ function shapeListItem(row, req) {
     documentationPct: docs.pct,
     missingTasksCount: openTasks,
     dueDate: row.due_date,
+    completedAt: row.completed_at,
   };
   if (!canSeeFinancials(req, row)) return base;
   return {
@@ -147,9 +148,12 @@ function shapeDetail(row, req) {
 
 // ---- Projects ----
 router.get("/projects", (req, res) => {
-  let rows = db.prepare("SELECT * FROM projects ORDER BY created_at DESC").all();
+  const { status, search, finished } = req.query;
 
-  const { status, search } = req.query;
+  let rows = finished === "1"
+    ? db.prepare("SELECT * FROM projects WHERE completed_at IS NOT NULL ORDER BY completed_at DESC").all()
+    : db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
+
   if (status && status !== "all") {
     rows = rows.filter((p) => p.status === status);
   }
@@ -244,6 +248,31 @@ router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
 
   const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(project.id);
   res.json(shapeDetail(updated, req));
+});
+
+// CEO finishing their own project applies immediately; a manager's request goes to
+// the CEO decision queue instead, carrying the proposed date in approvals.reason so
+// it can be stamped onto the project once approved.
+router.post("/projects/:id/request-finish", CAN_MANAGE, (req, res) => {
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
+  if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
+  if (!assertOwnsProject(req, res, project)) return;
+  if (project.completed_at) return res.status(400).json({ error: "Энэ төсөл аль хэдийн дууссан" });
+
+  const { completedAt } = req.body || {};
+  const date = completedAt || new Date().toISOString().slice(0, 10);
+
+  if (req.user.role === "ceo") {
+    db.prepare("UPDATE projects SET completed_at = ? WHERE id = ?").run(date, project.id);
+    return res.json({ ok: true, immediate: true, completedAt: date });
+  }
+
+  db.prepare("INSERT INTO approvals (kind, title, project_id, reason) VALUES ('finish', ?, ?, ?)").run(
+    `${project.name} — дуусгахыг хүсч байна`,
+    project.id,
+    date
+  );
+  res.json({ ok: true, immediate: false });
 });
 
 router.delete("/projects/:id", CAN_MANAGE, (req, res) => {
