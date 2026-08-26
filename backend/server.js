@@ -15,6 +15,7 @@ const teamRoutes = require("./routes/team");
 const overviewRoutes = require("./routes/overview");
 const miscRoutes = require("./routes/misc");
 const paymentRequestsRoutes = require("./routes/payment-requests");
+const backupRoutes = require("./routes/backup");
 const { UPLOAD_DIR } = require("./lib/uploads");
 
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/finance", financeRoutes);
 app.use("/api", teamRoutes);
 app.use("/api", miscRoutes);
 app.use("/api", paymentRequestsRoutes);
+app.use("/api", backupRoutes);
 app.use("/uploads", express.static(UPLOAD_DIR));
 
 app.use((err, req, res, next) => {
