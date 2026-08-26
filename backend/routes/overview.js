@@ -21,8 +21,8 @@ function projectBrief(p) {
 }
 
 function ceoOverview() {
-  const projects = db.prepare("SELECT * FROM projects ORDER BY created_at DESC").all();
-  const fin = computeFinanceSummary();
+  const projects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
+  const fin = computeFinanceSummary(null, true);
 
   const lateProject = projects.find((p) => p.status === "late");
   const alert = lateProject
@@ -78,7 +78,7 @@ function ceoOverview() {
 
 function managerOverview(user) {
   const employeeId = employeeIdForUser(user.id);
-  const allProjects = db.prepare("SELECT * FROM projects ORDER BY created_at DESC").all();
+  const allProjects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
   const myProjects = employeeId ? allProjects.filter((p) => p.owner_employee_id === employeeId) : allProjects;
   const today = new Date().toISOString().slice(0, 10);
 
