@@ -310,8 +310,11 @@ router.post("/employees/:id/contracts", CEO_ONLY, (req, res) => {
 });
 
 // ---- Files ----
-router.get("/employees/:id/files", CEO_ONLY, (req, res) => {
-  const rows = db.prepare("SELECT id, category, filename, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'employee' AND owner_id = ? ORDER BY created_at DESC").all(req.params.id);
+router.get("/employees/:id/files", (req, res) => {
+  if (!canSeeFull(req, req.params.id)) return res.status(403).json({ error: "Танд энэ мэдээллийг харах эрх байхгүй" });
+  const rows = db
+    .prepare("SELECT id, category, filename, stored_path AS storedPath, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'employee' AND owner_id = ? ORDER BY created_at DESC")
+    .all(req.params.id);
   res.json(rows);
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, MoreHorizontal, Trash2 } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState, Avatar, ConfirmDialog, FormModal } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, fmt, useToast, EmptyState, Avatar, ConfirmDialog, FormModal, FileListModal } from "../components";
 
 const FULL_TABS = [
   { value: "general", label: "Ерөнхий" },
@@ -22,6 +22,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
   const [grantingLogin, setGrantingLogin] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
   const [formModal, setFormModal] = useState(null);
+  const [fileFolder, setFileFolder] = useState(null);
   const toast = useToast();
   const isCeo = user?.role === "ceo";
 
@@ -141,6 +142,16 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
       await api.uploadEmployeeFile(employeeId, category, file);
       toast(`${file.name} нэмэгдлээ`);
       load();
+      if (fileFolder?.category === category) openFolder(category);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function openFolder(category) {
+    try {
+      const files = await api.getEmployeeFiles(employeeId);
+      setFileFolder({ category, files: files.filter((f) => f.category === category) });
     } catch (err) {
       setError(err.message);
     }
@@ -222,7 +233,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           {canSeeFull && tab === "contract" && <ContractTab employee={employee} />}
           {canSeeFull && tab === "leave" && <LeaveTab employee={employee} isCeo={isCeo} onPlan={planLeave} />}
           {canSeeFull && tab === "salary" && <SalaryTab employee={employee} isCeo={isCeo} onEditSalary={editSalary} />}
-          {canSeeFull && tab === "files" && <FilesTab employee={employee} isCeo={isCeo} onUpload={uploadFile} />}
+          {canSeeFull && tab === "files" && <FilesTab employee={employee} isCeo={isCeo} onUpload={uploadFile} onOpenFolder={openFolder} />}
         </>
       )}
       {confirmState && (
@@ -237,6 +248,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           onCancel={() => setFormModal(null)}
         />
       )}
+      {fileFolder && <FileListModal title={fileFolder.category} files={fileFolder.files} onClose={() => setFileFolder(null)} />}
     </SlideOver>
   );
 }
@@ -472,15 +484,22 @@ function SalaryTab({ employee, isCeo, onEditSalary }) {
   );
 }
 
-function FilesTab({ employee, isCeo, onUpload }) {
+function FilesTab({ employee, isCeo, onUpload, onOpenFolder }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
       {employee.fileFolders.map((f) => (
-        <label key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: isCeo ? "pointer" : "default" }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{f.category}</div>
-          <div style={{ fontSize: 11 }} className="plex-mono">{f.count} файл</div>
-          {isCeo && <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />}
-        </label>
+        <div key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+          <button type="button" onClick={() => onOpenFolder(f.category)} style={{ background: "transparent", textAlign: "left", width: "100%" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{f.category}</div>
+            <div style={{ fontSize: 11 }} className="plex-mono">{f.count} файл</div>
+          </button>
+          {isCeo && (
+            <label style={{ display: "block", marginTop: 8, fontSize: 10, color: "var(--gold)", fontWeight: 600, cursor: "pointer" }}>
+              + Файл нэмэх
+              <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />
+            </label>
+          )}
+        </div>
       ))}
     </div>
   );

@@ -143,6 +143,34 @@ export function FormModal({ title, fields, submitLabel = "Хадгалах", onC
   );
 }
 
+export function FileListModal({ title, files, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "#00000099", zIndex: 95 }}>
+      <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{title}</h3>
+          <button type="button" onClick={onClose} style={{ background: "transparent", color: "var(--muted)", fontSize: 16 }}>×</button>
+        </div>
+        <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+          {files.length === 0 && <EmptyState>Файл алга</EmptyState>}
+          {files.map((f) => (
+            <a
+              key={f.id}
+              href={`${API_BASE}/uploads/${f.storedPath}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", color: "var(--text)" }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{f.filename}</span>
+              {f.sizeBytes != null && <span style={{ fontSize: 10, color: "var(--muted)", flexShrink: 0 }} className="plex-mono">{Math.round(f.sizeBytes / 1024)} KB</span>}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const BADGE_TINTS = {
   "var(--teal)": "#e7f6ef",
   "var(--amber)": "#fff2d8",

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { X, Check, Plus, MoreHorizontal, Pencil, Trash2, Download } from "lucide-react";
 import { api } from "../api";
 import { emit } from "../bus";
-import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState, ConfirmDialog, FormModal } from "../components";
+import { SlideOver, TabBar, Badge, FieldRow, STATUS_META, RECEIPT_META, BADGE_TINTS, fmtM, useToast, EmptyState, ConfirmDialog, FormModal, FileListModal } from "../components";
 import PaymentRequestModal from "./PaymentRequestModal";
 import { printProjectReport } from "../lib/printReport";
 
@@ -42,6 +42,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
   const [formModal, setFormModal] = useState(null);
+  const [fileFolder, setFileFolder] = useState(null);
   const toast = useToast();
   const isProduction = user?.role === "production";
   const canEdit = user?.role === "ceo" || (user?.role === "manager" && project?.ownerEmployeeId === user?.employeeId);
@@ -274,6 +275,16 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
       await api.uploadProjectFile(projectId, category, file);
       toast(`${file.name} нэмэгдлээ`);
       load();
+      if (fileFolder === category) openFolder(category);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function openFolder(category) {
+    try {
+      const files = await api.getProjectFiles(projectId);
+      setFileFolder({ category, files: files.filter((f) => f.category === category) });
     } catch (err) {
       setError(err.message);
     }
@@ -335,7 +346,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           {tab === "production" && <ProductionTab project={project} />}
           {tab === "review" && <ReviewTab project={project} canManage={canEdit} onAdd={addReviewItem} />}
           {tab === "finance" && <FinanceTab project={project} canEdit={canEdit} onReceipt={setReceipt} onAddCostItem={addCostItem} onAddPayment={addPayment} />}
-          {tab === "files" && <FilesTab project={project} canManage={canEdit} onUpload={uploadFile} />}
+          {tab === "files" && <FilesTab project={project} canManage={canEdit} onUpload={uploadFile} onOpenFolder={openFolder} />}
         </>
       )}
       {showPaymentRequest && <PaymentRequestModal projectId={projectId} onClose={() => setShowPaymentRequest(false)} />}
@@ -351,6 +362,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           onCancel={() => setFormModal(null)}
         />
       )}
+      {fileFolder && <FileListModal title={fileFolder.category} files={fileFolder.files} onClose={() => setFileFolder(null)} />}
     </SlideOver>
   );
 }
@@ -725,20 +737,25 @@ function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onAddPayment }
   );
 }
 
-function FilesTab({ project, canManage, onUpload }) {
+function FilesTab({ project, canManage, onUpload, onOpenFolder }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
       {project.fileFolders.map((f) => (
-        <label key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, cursor: canManage ? "pointer" : "default" }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{f.category}</div>
-          <div style={{ color: "var(--muted)", fontSize: 10, marginBottom: 6 }}>{FILE_CATEGORY_HINT[f.category]}</div>
-          <div style={{ fontSize: 11 }} className="plex-mono">
-            {f.count} файл{f.missing > 0 && ` · ${f.missing} дутуу`}
-          </div>
+        <div key={f.category} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
+          <button type="button" onClick={() => onOpenFolder(f.category)} style={{ background: "transparent", textAlign: "left", width: "100%" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{f.category}</div>
+            <div style={{ color: "var(--muted)", fontSize: 10, marginBottom: 6 }}>{FILE_CATEGORY_HINT[f.category]}</div>
+            <div style={{ fontSize: 11 }} className="plex-mono">
+              {f.count} файл{f.missing > 0 && ` · ${f.missing} дутуу`}
+            </div>
+          </button>
           {canManage && (
-            <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />
+            <label style={{ display: "block", marginTop: 8, fontSize: 10, color: "var(--gold)", fontWeight: 600, cursor: "pointer" }}>
+              + Файл нэмэх
+              <input type="file" style={{ display: "none" }} onChange={(e) => onUpload(f.category, e.target.files[0])} />
+            </label>
           )}
-        </label>
+        </div>
       ))}
     </div>
   );

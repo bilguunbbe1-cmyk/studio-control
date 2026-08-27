@@ -435,4 +435,11 @@ router.post("/projects/:id/files", CAN_MANAGE, upload.single("file"), (req, res)
   res.status(201).json({ id: info.lastInsertRowid, category, filename: req.file.originalname, sizeBytes: req.file.size });
 });
 
+router.get("/projects/:id/files", CAN_MANAGE, (req, res) => {
+  const rows = db
+    .prepare("SELECT id, category, filename, stored_path AS storedPath, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'project' AND owner_id = ? ORDER BY created_at DESC")
+    .all(req.params.id);
+  res.json(rows);
+});
+
 module.exports = router;
