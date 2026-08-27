@@ -17,6 +17,13 @@ function employeeIdForUser(userId) {
   return row ? row.id : null;
 }
 
+function checklistProgress(projectId) {
+  const rows = db.prepare("SELECT complete FROM checklist_items WHERE project_id = ?").all(projectId);
+  if (!rows.length) return 0;
+  const done = rows.filter((r) => r.complete).length;
+  return Math.round((done / rows.length) * 100);
+}
+
 function deriveStatus(spent, budget) {
   if (!budget) return "ontrack";
   const pct = spent / budget;
@@ -39,6 +46,7 @@ module.exports = {
   employeeById,
   employeeIdForUser,
   deriveStatus,
+  checklistProgress,
   fileCountsFor,
   PROJECT_FILE_CATEGORIES,
   EMPLOYEE_FILE_CATEGORIES,
