@@ -1,7 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../middleware/auth");
-const { employeeIdForUser, checklistProgress } = require("../lib/helpers");
+const { employeeIdForUser, deliverableProgress } = require("../lib/helpers");
 const { computeFinanceSummary } = require("../lib/finance");
 
 const router = express.Router();
@@ -15,7 +15,7 @@ function projectBrief(p) {
     client: p.client,
     lead: p.lead,
     status: p.status,
-    progressPct: checklistProgress(p.id),
+    progressPct: deliverableProgress(p.id),
     budgetSpentPct: p.budget ? Math.round((p.spent / p.budget) * 100) : 0,
   };
 }

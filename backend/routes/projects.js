@@ -2,7 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { upload } = require("../lib/uploads");
-const { canManage, employeeById, employeeIdForUser, deriveStatus, checklistProgress, PROJECT_FILE_CATEGORIES } = require("../lib/helpers");
+const { canManage, employeeById, employeeIdForUser, deriveStatus, deliverableProgress, PROJECT_FILE_CATEGORIES } = require("../lib/helpers");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -64,7 +64,7 @@ function shapeListItem(row, req) {
     lead: owner ? owner.name : row.lead,
     ownerEmployeeId: row.owner_employee_id,
     status: row.status,
-    progressPct: checklistProgress(row.id),
+    progressPct: deliverableProgress(row.id),
     documentationPct: docs.pct,
     missingTasksCount: openTasks,
     dueDate: row.due_date,

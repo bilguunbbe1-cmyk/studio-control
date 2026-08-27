@@ -17,11 +17,15 @@ function employeeIdForUser(userId) {
   return row ? row.id : null;
 }
 
-function checklistProgress(projectId) {
-  const rows = db.prepare("SELECT complete FROM checklist_items WHERE project_id = ?").all(projectId);
-  if (!rows.length) return 0;
-  const done = rows.filter((r) => r.complete).length;
-  return Math.round((done / rows.length) * 100);
+// Progress reflects actual production output (deliverables shot/edited/delivered),
+// not administrative checklist items -- a project can have every pre-production
+// checklist box ticked while zero real work has been produced.
+function deliverableProgress(projectId) {
+  const rows = db.prepare("SELECT done_count, total_count FROM deliverables WHERE project_id = ?").all(projectId);
+  const total = rows.reduce((s, r) => s + r.total_count, 0);
+  if (!total) return 0;
+  const done = rows.reduce((s, r) => s + Math.min(r.done_count, r.total_count), 0);
+  return Math.round((done / total) * 100);
 }
 
 function deriveStatus(spent, budget) {
@@ -46,7 +50,7 @@ module.exports = {
   employeeById,
   employeeIdForUser,
   deriveStatus,
-  checklistProgress,
+  deliverableProgress,
   fileCountsFor,
   PROJECT_FILE_CATEGORIES,
   EMPLOYEE_FILE_CATEGORIES,
