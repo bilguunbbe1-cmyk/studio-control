@@ -92,6 +92,7 @@ export const api = {
   createEmployee: (payload) => request("/api/employees", { method: "POST", body: payload }),
   getEmployee: (id) => request(`/api/employees/${id}`),
   updateEmployee: (id, payload) => request(`/api/employees/${id}`, { method: "PATCH", body: payload }),
+  updateEmployeeSalary: (id, baseSalaryAmount) => request(`/api/employees/${id}/salary`, { method: "PATCH", body: { baseSalaryAmount } }),
   deleteEmployee: (id) => request(`/api/employees/${id}`, { method: "DELETE" }),
   grantLogin: (id, payload) => request(`/api/employees/${id}/grant-login`, { method: "POST", body: payload }),
   setEmployeeBirthday: (id, month, day) => request(`/api/employees/${id}/birthday`, { method: "POST", body: { month, day } }),

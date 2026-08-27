@@ -117,6 +117,24 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
     });
   }
 
+  function editSalary() {
+    setFormModal({
+      title: "Сарын цалин тохируулах",
+      fields: [{ key: "baseSalaryAmount", label: "Сарын цалин (₮)", type: "number", defaultValue: employee.salary.baseSalaryAmount || "" }],
+      onSubmit: async (v) => {
+        if (v.baseSalaryAmount == null || v.baseSalaryAmount === "" || Number.isNaN(Number(v.baseSalaryAmount))) return;
+        setFormModal(null);
+        try {
+          await api.updateEmployeeSalary(employeeId, Number(v.baseSalaryAmount));
+          toast("Цалин шинэчлэгдлээ");
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
   async function uploadFile(category, file) {
     if (!file) return;
     try {
@@ -203,7 +221,7 @@ export default function EmployeeDetailPanel({ employeeId, user, onClose }) {
           {canSeeFull && tab === "general" && <GeneralTab employee={employee} isCeo={isCeo} onSubmitBirthday={submitBirthday} onEdit={() => setEditing(true)} onGrantLogin={() => setGrantingLogin(true)} />}
           {canSeeFull && tab === "contract" && <ContractTab employee={employee} />}
           {canSeeFull && tab === "leave" && <LeaveTab employee={employee} isCeo={isCeo} onPlan={planLeave} />}
-          {canSeeFull && tab === "salary" && <SalaryTab employee={employee} />}
+          {canSeeFull && tab === "salary" && <SalaryTab employee={employee} isCeo={isCeo} onEditSalary={editSalary} />}
           {canSeeFull && tab === "files" && <FilesTab employee={employee} isCeo={isCeo} onUpload={uploadFile} />}
         </>
       )}
@@ -401,35 +419,55 @@ function LeaveTab({ employee, isCeo, onPlan }) {
   );
 }
 
-function SalaryTab({ employee }) {
+function SalaryTab({ employee, isCeo, onEditSalary }) {
   const { salary } = employee;
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-        <Metric
-          label="Дараагийн олголт"
-          value={salary.nextDisbursementDate || "—"}
-          sub={salary.nextDisbursementPctOfBase ? `Урьдчилгаа · Үндсэн цалингийн ${salary.nextDisbursementPctOfBase}%` : "Урьдчилгаа"}
-        />
-        <Metric label="Дараагийн үлдэгдэл" value={salary.nextBalanceDate || "—"} sub="Сарын эцсийн тооцоо" />
+      <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 2 }}>Сарын цалин</div>
+          <div className="plex-mono" style={{ fontSize: 16, fontWeight: 600 }}>
+            {salary.baseSalaryAmount ? `₮${fmt(salary.baseSalaryAmount)}` : "Тохируулаагүй"}
+          </div>
+        </div>
+        {isCeo && (
+          <button onClick={onEditSalary} style={{ background: "var(--panel2)", border: "1px solid var(--line)", color: "var(--text)", fontSize: 11, fontWeight: 600, padding: "8px 12px", borderRadius: 8 }}>
+            Засах
+          </button>
+        )}
       </div>
 
-      <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Цалингийн хуваарь</h3>
-      <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 10 }}>Сар бүр автоматаар</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {salary.schedule.map((s) => (
-          <div key={s.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
-            <div>
-              <div className="plex-mono">{s.date}</div>
-              <div style={{ color: "var(--muted)", fontSize: 11 }}>{s.label}</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              {s.amount != null && <div className="plex-mono">₮{fmt(s.amount)}</div>}
-              <div style={{ color: s.status === "Олгосон" ? "var(--teal)" : "var(--muted)", fontSize: 11 }}>{s.status}</div>
-            </div>
+      {!salary.baseSalaryAmount ? (
+        <EmptyState>{isCeo ? "Цалин тохируулаагүй байна. Дээрх \"Засах\" товчоор дүнг оруулна уу." : "Цалин тохируулаагүй байна."}</EmptyState>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <Metric
+              label="Дараагийн олголт"
+              value={salary.nextDisbursementDate || "—"}
+              sub={salary.nextDisbursementPctOfBase ? `Урьдчилгаа · Үндсэн цалингийн ${salary.nextDisbursementPctOfBase}%` : "Урьдчилгаа"}
+            />
+            <Metric label="Дараагийн үлдэгдэл" value={salary.nextBalanceDate || "—"} sub="Сарын эцсийн тооцоо" />
           </div>
-        ))}
-      </div>
+
+          <h3 style={{ fontSize: 13, fontWeight: 600, margin: "0 0 2px" }}>Цалингийн хуваарь</h3>
+          <div style={{ color: "var(--muted)", fontSize: 11, marginBottom: 10 }}>Сар бүрийн 5, 20-нд автоматаар</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {salary.schedule.map((s) => (
+              <div key={`${s.date}-${s.label}`} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                <div>
+                  <div className="plex-mono">{s.date}</div>
+                  <div style={{ color: "var(--muted)", fontSize: 11 }}>{s.label}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  {s.amount != null && <div className="plex-mono">₮{fmt(s.amount)}</div>}
+                  <div style={{ color: s.status === "Олгосон" ? "var(--teal)" : "var(--muted)", fontSize: 11 }}>{s.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

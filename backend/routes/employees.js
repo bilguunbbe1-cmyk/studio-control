@@ -27,6 +27,50 @@ function tenureLabel(hireDate) {
   return parts.join(" ");
 }
 
+// Pay runs on the 5th (advance) and 20th (final settlement) of every month, split
+// evenly -- there's no per-entry data source, so the schedule is derived on the fly
+// from base_salary_amount rather than stored, and stays correct with zero upkeep.
+function toIsoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function salarySchedule(baseSalaryAmount) {
+  if (!baseSalaryAmount) {
+    return { baseSalaryAmount: 0, nextDisbursementDate: null, nextDisbursementPctOfBase: null, nextBalanceDate: null, schedule: [] };
+  }
+  const half = Math.round(baseSalaryAmount / 2);
+  const today = new Date();
+  const todayIso = toIsoDate(today);
+  const entries = [];
+  for (let offset = -1; offset <= 1; offset++) {
+    const monthDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    [
+      { day: 5, label: "Урьдчилгаа", isAdvance: true },
+      { day: 20, label: "Эцсийн тооцоо", isAdvance: false },
+    ].forEach(({ day, label, isAdvance }) => {
+      const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+      const iso = toIsoDate(date);
+      entries.push({
+        date: iso,
+        label,
+        amount: half,
+        pctOfBase: isAdvance ? 50 : null,
+        status: iso <= todayIso ? "Олгосон" : "Төлөвлөсөн",
+      });
+    });
+  }
+  entries.sort((a, b) => a.date.localeCompare(b.date));
+  const nextDisbursement = entries.find((e) => e.status === "Төлөвлөсөн" && e.label === "Урьдчилгаа");
+  const nextBalance = entries.find((e) => e.status === "Төлөвлөсөн" && e.label === "Эцсийн тооцоо");
+  return {
+    baseSalaryAmount,
+    nextDisbursementDate: nextDisbursement ? nextDisbursement.date : null,
+    nextDisbursementPctOfBase: nextDisbursement ? nextDisbursement.pctOfBase : null,
+    nextBalanceDate: nextBalance ? nextBalance.date : null,
+    schedule: entries,
+  };
+}
+
 function isSelf(req, employeeId) {
   const row = db.prepare("SELECT id FROM employees WHERE id = ? AND user_id = ?").get(employeeId, req.user.id);
   return !!row;
@@ -129,18 +173,7 @@ router.get("/employees/:id", (req, res) => {
   const leaveCycle = db.prepare("SELECT * FROM leave_cycles WHERE employee_id = ?").get(e.id);
   const leaveHistory = db.prepare("SELECT * FROM leave_records WHERE employee_id = ? ORDER BY start_date DESC").all(e.id);
 
-  const payrollRows = db.prepare("SELECT * FROM payroll_entries WHERE employee_id = ? ORDER BY date").all(e.id);
-  const payrollSchedule = payrollRows.map((p) => ({
-    id: p.id,
-    date: p.date,
-    label: p.label,
-    status: p.status,
-    isAdvance: !!p.is_advance,
-    pctOfBase: p.is_advance ? p.pct_of_base : null,
-    amount: p.amount,
-  }));
-  const nextDisbursement = payrollRows.find((p) => p.status === "Төлөвлөсөн" && p.is_advance);
-  const nextBalance = payrollRows.find((p) => p.status === "Төлөвлөсөн" && !p.is_advance);
+  const salary = salarySchedule(e.base_salary_amount);
 
   const fileFolders = EMPLOYEE_FILE_CATEGORIES.map((category) => {
     const r = db.prepare("SELECT COUNT(*) AS c FROM files WHERE owner_type = 'employee' AND owner_id = ? AND category = ?").get(e.id, category);
@@ -171,13 +204,7 @@ router.get("/employees/:id", (req, res) => {
       status: leaveCycle ? leaveCycle.status : "Төлөвлөөгүй",
       history: leaveHistory,
     },
-    salary: {
-      canSeeAmounts: true,
-      nextDisbursementDate: nextDisbursement ? nextDisbursement.date : null,
-      nextDisbursementPctOfBase: nextDisbursement ? nextDisbursement.pct_of_base : null,
-      nextBalanceDate: nextBalance ? nextBalance.date : null,
-      schedule: payrollSchedule,
-    },
+    salary: { canSeeAmounts: true, ...salary },
     fileFolders,
   });
 });
@@ -199,6 +226,17 @@ router.patch("/employees/:id", CEO_ONLY, (req, res) => {
     e.id
   );
   res.json(shapeListItem(db.prepare("SELECT * FROM employees WHERE id = ?").get(e.id)));
+});
+
+router.patch("/employees/:id/salary", CEO_ONLY, (req, res) => {
+  const e = db.prepare("SELECT * FROM employees WHERE id = ?").get(req.params.id);
+  if (!e) return res.status(404).json({ error: "Ажилтан олдсонгүй" });
+  const { baseSalaryAmount } = req.body || {};
+  if (baseSalaryAmount == null || Number.isNaN(Number(baseSalaryAmount)) || Number(baseSalaryAmount) < 0) {
+    return res.status(400).json({ error: "baseSalaryAmount буруу байна" });
+  }
+  db.prepare("UPDATE employees SET base_salary_amount = ? WHERE id = ?").run(Number(baseSalaryAmount), e.id);
+  res.json({ canSeeAmounts: true, ...salarySchedule(Number(baseSalaryAmount)) });
 });
 
 router.post("/employees/:id/grant-login", CEO_ONLY, (req, res) => {
