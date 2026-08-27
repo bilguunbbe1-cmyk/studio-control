@@ -28,6 +28,15 @@ function deliverableProgress(projectId) {
   return Math.round((done / total) * 100);
 }
 
+// The authoritative "money spent" figure is always the live sum of a project's
+// cost line items -- projects.spent is a separate mutable column that only gets
+// updated when a payment request is paid, so it silently drifts to 0 whenever
+// costs are logged directly (the "+ Зардал" flow never touches it).
+function projectCostTotal(projectId) {
+  const row = db.prepare("SELECT SUM(amount) AS total FROM cost_line_items WHERE project_id = ?").get(projectId);
+  return row.total || 0;
+}
+
 function deriveStatus(spent, budget) {
   if (!budget) return "ontrack";
   const pct = spent / budget;
@@ -51,6 +60,7 @@ module.exports = {
   employeeIdForUser,
   deriveStatus,
   deliverableProgress,
+  projectCostTotal,
   fileCountsFor,
   PROJECT_FILE_CATEGORIES,
   EMPLOYEE_FILE_CATEGORIES,

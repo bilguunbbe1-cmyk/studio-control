@@ -1,11 +1,19 @@
 const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../middleware/auth");
-const { employeeIdForUser, deliverableProgress } = require("../lib/helpers");
+const { employeeIdForUser, deliverableProgress, projectCostTotal, deriveStatus } = require("../lib/helpers");
 const { computeFinanceSummary } = require("../lib/finance");
 
 const router = express.Router();
 router.use(requireAuth);
+
+// projects.spent/status only update when a payment request is paid, so they
+// drift stale whenever costs are logged directly via "+ Зардал" -- always
+// derive both live from the real cost line items instead of trusting the columns.
+function withLiveFinance(p) {
+  const spent = projectCostTotal(p.id);
+  return { ...p, spent, status: deriveStatus(spent, p.budget) };
+}
 
 function projectBrief(p) {
   return {
@@ -21,7 +29,7 @@ function projectBrief(p) {
 }
 
 function ceoOverview() {
-  const projects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
+  const projects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all().map(withLiveFinance);
   const fin = computeFinanceSummary(null, true);
 
   const lateProject = projects.find((p) => p.status === "late");
@@ -78,7 +86,7 @@ function ceoOverview() {
 
 function managerOverview(user) {
   const employeeId = employeeIdForUser(user.id);
-  const allProjects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
+  const allProjects = db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all().map(withLiveFinance);
   const myProjects = employeeId ? allProjects.filter((p) => p.owner_employee_id === employeeId) : allProjects;
   const today = new Date().toISOString().slice(0, 10);
 

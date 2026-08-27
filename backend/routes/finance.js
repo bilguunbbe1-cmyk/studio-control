@@ -2,7 +2,7 @@ const express = require("express");
 const db = require("../db");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { computeFinanceSummary } = require("../lib/finance");
-const { employeeIdForUser } = require("../lib/helpers");
+const { employeeIdForUser, projectCostTotal } = require("../lib/helpers");
 
 const router = express.Router();
 router.use(requireAuth);
@@ -37,15 +37,18 @@ router.get("/projects", (req, res) => {
     ? db.prepare("SELECT * FROM projects WHERE owner_employee_id = ? ORDER BY created_at DESC").all(owner)
     : db.prepare("SELECT * FROM projects ORDER BY created_at DESC").all();
   res.json(
-    rows.map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      revenue: p.contract_amount,
-      cost: p.spent,
-      profit: p.contract_amount - p.spent,
-      marginPct: p.contract_amount ? Math.round(((p.contract_amount - p.spent) / p.contract_amount) * 100) : 0,
-    }))
+    rows.map((p) => {
+      const cost = projectCostTotal(p.id);
+      return {
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        revenue: p.contract_amount,
+        cost,
+        profit: p.contract_amount - cost,
+        marginPct: p.contract_amount ? Math.round(((p.contract_amount - cost) / p.contract_amount) * 100) : 0,
+      };
+    })
   );
 });
 

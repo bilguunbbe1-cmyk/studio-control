@@ -12,11 +12,13 @@ function computeFinanceSummary(ownerEmployeeId, activeOnly) {
 
   const projects = db.prepare(`SELECT * FROM projects${where}`).all(...params);
   const contracted = projects.reduce((s, p) => s + p.contract_amount, 0);
-  const spent = projects.reduce((s, p) => s + p.spent, 0);
 
   const projectIds = projects.map((p) => p.id);
   const idPlaceholders = projectIds.length ? projectIds.map(() => "?").join(",") : "0";
 
+  // The real "money spent" figure -- projects.spent is a separate mutable column
+  // that only updates when a payment request is paid, so it drifts stale whenever
+  // costs are logged directly. totalCost from the actual line items is authoritative.
   const costRows = db
     .prepare(`SELECT amount, receipt_status FROM cost_line_items WHERE project_id IN (${idPlaceholders})`)
     .all(...projectIds);
@@ -31,13 +33,13 @@ function computeFinanceSummary(ownerEmployeeId, activeOnly) {
   const receivable = Math.max(0, contracted - received);
   const overdueReceivable = Math.round(receivable * 0.36);
   const fixedCosts = Math.round(contracted * 0.197);
-  const netProfit = contracted - spent - fixedCosts;
+  const netProfit = contracted - totalCost - fixedCosts;
   const marginPct = contracted ? Math.round(((netProfit / contracted) * 100) * 10) / 10 : 0;
 
   return {
     projects,
     contracted,
-    spent,
+    spent: totalCost,
     undocumented,
     totalCost,
     documented,

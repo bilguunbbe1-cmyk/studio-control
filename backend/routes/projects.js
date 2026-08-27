@@ -63,7 +63,7 @@ function shapeListItem(row, req) {
     client: row.client,
     lead: owner ? owner.name : row.lead,
     ownerEmployeeId: row.owner_employee_id,
-    status: row.status,
+    status: deriveStatus(docs.total, row.budget),
     progressPct: deliverableProgress(row.id),
     documentationPct: docs.pct,
     missingTasksCount: openTasks,
@@ -75,8 +75,8 @@ function shapeListItem(row, req) {
     ...base,
     contractAmount: row.contract_amount,
     budget: row.budget,
-    spent: row.spent,
-    budgetSpentPct: row.budget ? Math.round((row.spent / row.budget) * 100) : 0,
+    spent: docs.total,
+    budgetSpentPct: row.budget ? Math.round((docs.total / row.budget) * 100) : 0,
   };
 }
 
@@ -121,8 +121,8 @@ function shapeDetail(row, req) {
 
   const financeExtra = canSeeFinancials(req, row)
     ? {
-        grossProfit: row.contract_amount - row.spent,
-        marginPct: row.contract_amount ? Math.round(((row.contract_amount - row.spent) / row.contract_amount) * 100) : 0,
+        grossProfit: row.contract_amount - list.spent,
+        marginPct: row.contract_amount ? Math.round(((row.contract_amount - list.spent) / row.contract_amount) * 100) : 0,
         received: paymentTotal(row.id),
         payments: db
           .prepare("SELECT id, amount, received_at AS receivedAt, note FROM client_payments WHERE project_id = ? ORDER BY received_at DESC")
@@ -154,15 +154,17 @@ router.get("/projects", (req, res) => {
     ? db.prepare("SELECT * FROM projects WHERE completed_at IS NOT NULL ORDER BY completed_at DESC").all()
     : db.prepare("SELECT * FROM projects WHERE completed_at IS NULL ORDER BY created_at DESC").all();
 
-  if (status && status !== "all") {
-    rows = rows.filter((p) => p.status === status);
-  }
   if (search) {
     const q = String(search).toLowerCase();
     rows = rows.filter((p) => p.name.toLowerCase().includes(q) || (p.client || "").toLowerCase().includes(q));
   }
 
-  res.json(rows.map((p) => shapeListItem(p, req)));
+  let shaped = rows.map((p) => shapeListItem(p, req));
+  if (status && status !== "all") {
+    shaped = shaped.filter((p) => p.status === status);
+  }
+
+  res.json(shaped);
 });
 
 router.post("/projects", CAN_MANAGE, (req, res) => {
