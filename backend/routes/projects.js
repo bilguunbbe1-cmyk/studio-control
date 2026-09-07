@@ -27,6 +27,11 @@ function projectForCostItem(id) {
   return c && db.prepare("SELECT * FROM projects WHERE id = ?").get(c.project_id);
 }
 
+function projectForPayment(id) {
+  const p = db.prepare("SELECT project_id FROM client_payments WHERE id = ?").get(id);
+  return p && db.prepare("SELECT * FROM projects WHERE id = ?").get(p.project_id);
+}
+
 function projectForReviewItem(id) {
   const r = db.prepare("SELECT project_id FROM review_items WHERE id = ?").get(id);
   return r && db.prepare("SELECT * FROM projects WHERE id = ?").get(r.project_id);
@@ -358,6 +363,32 @@ router.post("/projects/:id/payments", CAN_MANAGE, (req, res) => {
   res.status(201).json(row);
 });
 
+router.patch("/payments/:id", CAN_MANAGE, (req, res) => {
+  const item = db.prepare("SELECT * FROM client_payments WHERE id = ?").get(req.params.id);
+  if (!item) return res.status(404).json({ error: "Орлого олдсонгүй" });
+  const project = projectForPayment(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  const { amount, receivedAt, note } = req.body || {};
+  if (amount != null && (!Number(amount) || Number(amount) <= 0)) return res.status(400).json({ error: "amount буруу байна" });
+  db.prepare("UPDATE client_payments SET amount = ?, received_at = ?, note = ? WHERE id = ?").run(
+    amount != null ? Number(amount) : item.amount,
+    receivedAt || item.received_at,
+    note !== undefined ? note : item.note,
+    item.id
+  );
+  const row = db.prepare("SELECT id, amount, received_at AS receivedAt, note FROM client_payments WHERE id = ?").get(item.id);
+  res.json(row);
+});
+
+router.delete("/payments/:id", CAN_MANAGE, (req, res) => {
+  const item = db.prepare("SELECT * FROM client_payments WHERE id = ?").get(req.params.id);
+  if (!item) return res.status(404).json({ error: "Орлого олдсонгүй" });
+  const project = projectForPayment(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  db.prepare("DELETE FROM client_payments WHERE id = ?").run(item.id);
+  res.status(204).end();
+});
+
 // ---- Cost line items ----
 router.post("/projects/:id/cost-items", CAN_MANAGE, (req, res) => {
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
@@ -383,6 +414,32 @@ router.patch("/cost-items/:id/receipt", CAN_MANAGE, (req, res) => {
   }
   db.prepare("UPDATE cost_line_items SET receipt_status = ? WHERE id = ?").run(receiptStatus, item.id);
   res.json({ id: item.id, category: item.category, amount: item.amount, receiptStatus });
+});
+
+router.patch("/cost-items/:id", CAN_MANAGE, (req, res) => {
+  const item = db.prepare("SELECT * FROM cost_line_items WHERE id = ?").get(req.params.id);
+  if (!item) return res.status(404).json({ error: "Зардлын мөр олдсонгүй" });
+  const project = projectForCostItem(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  const { category, amount } = req.body || {};
+  if (category != null && !String(category).trim()) return res.status(400).json({ error: "category хоосон байж болохгүй" });
+  if (amount != null && Number.isNaN(Number(amount))) return res.status(400).json({ error: "amount буруу байна" });
+  db.prepare("UPDATE cost_line_items SET category = ?, amount = ? WHERE id = ?").run(
+    category != null ? category : item.category,
+    amount != null ? Number(amount) : item.amount,
+    item.id
+  );
+  const row = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus FROM cost_line_items WHERE id = ?").get(item.id);
+  res.json(row);
+});
+
+router.delete("/cost-items/:id", CAN_MANAGE, (req, res) => {
+  const item = db.prepare("SELECT * FROM cost_line_items WHERE id = ?").get(req.params.id);
+  if (!item) return res.status(404).json({ error: "Зардлын мөр олдсонгүй" });
+  const project = projectForCostItem(req.params.id);
+  if (project && !assertOwnsProject(req, res, project)) return;
+  db.prepare("DELETE FROM cost_line_items WHERE id = ?").run(item.id);
+  res.status(204).end();
 });
 
 // ---- Review items ----

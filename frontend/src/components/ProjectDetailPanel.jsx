@@ -137,6 +137,41 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
     });
   }
 
+  function editCostItem(c) {
+    setFormModal({
+      title: "Зардал засах",
+      fields: [
+        { key: "category", label: "Зардлын ангилал", defaultValue: c.category },
+        { key: "amount", label: "Дүн (₮)", type: "number", defaultValue: c.amount },
+      ],
+      onSubmit: async (v) => {
+        if (!v.category || !v.amount || Number.isNaN(Number(v.amount))) return;
+        setFormModal(null);
+        try {
+          await api.updateCostItem(c.id, { category: v.category, amount: Number(v.amount) });
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
+  function removeCostItem(c) {
+    setConfirmState({
+      message: `"${c.category}" зардлын мөрийг устгах уу?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deleteCostItem(c.id);
+          load();
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
   function addPayment() {
     setFormModal({
       title: "Орлого бүртгэх",
@@ -151,6 +186,46 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
         try {
           await api.addPayment(projectId, { amount: Number(v.amount), note: v.note });
           toast("Орлого бүртгэгдлээ");
+          load();
+          emit("projects-changed");
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
+  function editPayment(p) {
+    setFormModal({
+      title: "Орлого засах",
+      fields: [
+        { key: "amount", label: "Клиентээс орж ирсэн дүн (₮)", type: "number", defaultValue: p.amount },
+        { key: "note", label: "Тэмдэглэл", required: false, defaultValue: p.note || "" },
+      ],
+      submitLabel: "Хадгалах",
+      onSubmit: async (v) => {
+        if (!v.amount || Number.isNaN(Number(v.amount)) || Number(v.amount) <= 0) return;
+        setFormModal(null);
+        try {
+          await api.updatePayment(p.id, { amount: Number(v.amount), note: v.note });
+          toast("Хадгалагдлаа");
+          load();
+          emit("projects-changed");
+        } catch (err) {
+          setError(err.message);
+        }
+      },
+    });
+  }
+
+  function removePayment(p) {
+    setConfirmState({
+      message: `₮${fmtM(p.amount)} орлогыг устгах уу?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await api.deletePayment(p.id);
+          toast("Орлого устгагдлаа");
           load();
           emit("projects-changed");
         } catch (err) {
@@ -345,7 +420,19 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
           {tab === "plan" && <PlanTab project={project} canManage={canEdit} onAdd={addDeliverable} onBump={bumpDeliverable} onEdit={editDeliverable} onRemove={removeDeliverable} />}
           {tab === "production" && <ProductionTab project={project} />}
           {tab === "review" && <ReviewTab project={project} canManage={canEdit} onAdd={addReviewItem} />}
-          {tab === "finance" && <FinanceTab project={project} canEdit={canEdit} onReceipt={setReceipt} onAddCostItem={addCostItem} onAddPayment={addPayment} />}
+          {tab === "finance" && (
+            <FinanceTab
+              project={project}
+              canEdit={canEdit}
+              onReceipt={setReceipt}
+              onAddCostItem={addCostItem}
+              onEditCostItem={editCostItem}
+              onRemoveCostItem={removeCostItem}
+              onAddPayment={addPayment}
+              onEditPayment={editPayment}
+              onRemovePayment={removePayment}
+            />
+          )}
           {tab === "files" && <FilesTab project={project} canManage={canEdit} onUpload={uploadFile} onOpenFolder={openFolder} />}
         </>
       )}
@@ -650,32 +737,60 @@ function ReviewTab({ project, canManage, onAdd }) {
   );
 }
 
-function CostItemRow({ c, canEdit, onReceipt }) {
+function CostItemRow({ c, canEdit, onReceipt, onEdit, onRemove }) {
   const meta = RECEIPT_META[c.receiptStatus];
   return (
-    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
       <div>
         <div style={{ fontSize: 12, fontWeight: 500 }}>{c.category}</div>
         <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</div>
       </div>
-      {canEdit ? (
-        <select
-          value={c.receiptStatus}
-          onChange={(e) => onReceipt(c.id, e.target.value)}
-          style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
-        >
-          {Object.entries(RECEIPT_META).map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
-      ) : (
-        <Badge color={meta.color}>{meta.label}</Badge>
-      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        {canEdit ? (
+          <select
+            value={c.receiptStatus}
+            onChange={(e) => onReceipt(c.id, e.target.value)}
+            style={{ background: BADGE_TINTS[meta.color] || "var(--panel2)", color: meta.color, border: "none", fontSize: 10, fontWeight: 600, padding: "4px 8px", borderRadius: 6 }}
+          >
+            {Object.entries(RECEIPT_META).map(([k, v]) => (
+              <option key={k} value={k}>{v.label}</option>
+            ))}
+          </select>
+        ) : (
+          <Badge color={meta.color}>{meta.label}</Badge>
+        )}
+        {canEdit && (
+          <span style={{ display: "flex", gap: 2 }}>
+            <button onClick={() => onEdit(c)} title="Засах" style={{ background: "var(--panel2)", color: "var(--muted)", width: 20, height: 20, borderRadius: 4 }}><Pencil size={10} style={{ margin: "auto" }} /></button>
+            <button onClick={() => onRemove(c)} title="Устгах" style={{ background: "var(--panel2)", color: "var(--rust)", width: 20, height: 20, borderRadius: 4 }}><Trash2 size={10} style={{ margin: "auto" }} /></button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
-function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onAddPayment }) {
+function PaymentRow({ p, canEdit, onEdit, onRemove }) {
+  return (
+    <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 500 }} className="plex-mono">{fmtM(p.amount)}</div>
+        {p.note && <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.note}</div>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{p.receivedAt}</div>
+        {canEdit && (
+          <span style={{ display: "flex", gap: 2 }}>
+            <button onClick={() => onEdit(p)} title="Засах" style={{ background: "var(--panel2)", color: "var(--muted)", width: 20, height: 20, borderRadius: 4 }}><Pencil size={10} style={{ margin: "auto" }} /></button>
+            <button onClick={() => onRemove(p)} title="Устгах" style={{ background: "var(--panel2)", color: "var(--rust)", width: 20, height: 20, borderRadius: 4 }}><Trash2 size={10} style={{ margin: "auto" }} /></button>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onEditCostItem, onRemoveCostItem, onAddPayment, onEditPayment, onRemovePayment }) {
   const pending = project.costItems.filter((c) => c.receiptStatus !== "has_receipt");
   const documented = project.costItems.filter((c) => c.receiptStatus === "has_receipt");
   const receivable = Math.max(0, project.contractAmount - project.received);
@@ -702,13 +817,7 @@ function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onAddPayment }
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
         {(project.payments || []).map((p) => (
-          <div key={p.id} style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 500 }} className="plex-mono">{fmtM(p.amount)}</div>
-              {p.note && <div style={{ color: "var(--muted)", fontSize: 11 }}>{p.note}</div>}
-            </div>
-            <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{p.receivedAt}</div>
-          </div>
+          <PaymentRow key={p.id} p={p} canEdit={canEdit} onEdit={onEditPayment} onRemove={onRemovePayment} />
         ))}
         {(!project.payments || project.payments.length === 0) && <EmptyState>Орлого бүртгэгдээгүй байна</EmptyState>}
       </div>
@@ -722,14 +831,14 @@ function FinanceTab({ project, canEdit, onReceipt, onAddCostItem, onAddPayment }
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {pending.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} />)}
+        {pending.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} onEdit={onEditCostItem} onRemove={onRemoveCostItem} />)}
         {project.costItems.length === 0 && <EmptyState>Зардлын мөр алга</EmptyState>}
       </div>
       {documented.length > 0 && (
         <>
           <div style={{ color: "var(--muted)", fontSize: 11, fontWeight: 600, margin: "16px 0 8px" }}>Баримттай</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {documented.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} />)}
+            {documented.map((c) => <CostItemRow key={c.id} c={c} canEdit={canEdit} onReceipt={onReceipt} onEdit={onEditCostItem} onRemove={onRemoveCostItem} />)}
           </div>
         </>
       )}
