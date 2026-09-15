@@ -6,6 +6,7 @@ const bcrypt = require("bcryptjs");
 // DB_PATH lets a persistent disk (e.g. Render) survive redeploys — point it at the
 // disk's mount path (e.g. /var/data/data.sqlite). Falls back to the local file when unset.
 const dbPath = process.env.DB_PATH || path.join(__dirname, "data.sqlite");
+console.log("[DB INIT] Using database file:", dbPath);
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const db = new Database(dbPath);
