@@ -239,6 +239,49 @@ if (!projectColumns.includes("completed_at")) {
   db.exec("ALTER TABLE projects ADD COLUMN completed_at TEXT");
 }
 
+// contract_date / spent_at are the real business dates the finance period filter runs
+// on -- created_at only records when a row was typed in, and most history was entered
+// in bulk long after the fact. Rows left NULL fall back to created_at in queries.
+if (!projectColumns.includes("contract_date")) {
+  db.exec("ALTER TABLE projects ADD COLUMN contract_date TEXT");
+  // Best guess for existing projects: the earliest date we know anything about them.
+  // Users correct these from the project edit form.
+  const guess = db.prepare(
+    `SELECT p.id, p.due_date, p.completed_at, substr(p.created_at, 1, 10) AS created,
+            (SELECT MIN(received_at) FROM client_payments WHERE project_id = p.id) AS first_payment
+     FROM projects p`
+  );
+  const setDate = db.prepare("UPDATE projects SET contract_date = ? WHERE id = ?");
+  db.transaction(() => {
+    for (const p of guess.all()) {
+      const dates = [p.due_date, p.completed_at, p.first_payment, p.created].filter(Boolean).map((d) => d.slice(0, 10));
+      setDate.run(dates.length ? dates.sort()[0] : null, p.id);
+    }
+  })();
+}
+
+const costColumns = db.prepare("PRAGMA table_info(cost_line_items)").all().map((c) => c.name);
+if (!costColumns.includes("spent_at")) {
+  db.exec("ALTER TABLE cost_line_items ADD COLUMN spent_at TEXT");
+  db.exec("UPDATE cost_line_items SET spent_at = substr(created_at, 1, 10)");
+}
+
+// Actual salary payouts, entered by the CEO. employee_name is copied in and the FK is
+// SET NULL (not CASCADE like payroll_entries) so deleting an employee never erases
+// what was already paid out -- the historical salary totals must stay put.
+db.exec(`
+CREATE TABLE IF NOT EXISTS salary_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  employee_name TEXT NOT NULL,
+  paid_at TEXT NOT NULL,
+  amount REAL NOT NULL,
+  note TEXT,
+  recorded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`);
+
 const employeeCount = db.prepare("SELECT COUNT(*) AS c FROM employees").get().c;
 
 if (employeeCount === 0) {
