@@ -73,6 +73,7 @@ function shapeListItem(row, req) {
     documentationPct: docs.pct,
     missingTasksCount: openTasks,
     dueDate: row.due_date,
+    contractDate: row.contract_date || (row.created_at || "").slice(0, 10),
     completedAt: row.completed_at,
   };
   if (!canSeeFinancials(req, row)) return base;
@@ -114,8 +115,8 @@ function shapeDetail(row, req) {
     )
     .all(row.id);
 
-  const costItemsRaw = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus FROM cost_line_items WHERE project_id = ?").all(row.id);
-  const costItems = canSeeFinancials(req, row) ? costItemsRaw : costItemsRaw.map((c) => ({ id: c.id, category: c.category, receiptStatus: c.receiptStatus }));
+  const costItemsRaw = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus, COALESCE(spent_at, substr(created_at, 1, 10)) AS spentAt FROM cost_line_items WHERE project_id = ?").all(row.id);
+  const costItems = canSeeFinancials(req, row) ? costItemsRaw : costItemsRaw.map((c) => ({ id: c.id, category: c.category, receiptStatus: c.receiptStatus, spentAt: c.spentAt }));
 
   const fileFolders = PROJECT_FILE_CATEGORIES.map((category) => {
     const r = db.prepare("SELECT COUNT(*) AS c, SUM(CASE WHEN status = 'Дутуу' THEN 1 ELSE 0 END) AS missing FROM files WHERE owner_type = 'project' AND owner_id = ? AND category = ?").get(row.id, category);
@@ -173,7 +174,7 @@ router.get("/projects", (req, res) => {
 });
 
 router.post("/projects", CAN_MANAGE, (req, res) => {
-  const { name, client, ownerEmployeeId, contractAmount, dueDate } = req.body || {};
+  const { name, client, ownerEmployeeId, contractAmount, dueDate, contractDate } = req.body || {};
   if (!name || !contractAmount) return res.status(400).json({ error: "name, contractAmount шаардлагатай" });
 
   const owner = ownerEmployeeId ? employeeById(ownerEmployeeId) : null;
@@ -185,10 +186,10 @@ router.post("/projects", CAN_MANAGE, (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO projects (code, name, client, lead, owner_employee_id, contract_amount, budget, spent, progress_pct, status, due_date)
-       VALUES (?,?,?,?,?,?,?,0,0,'ontrack',?)`
+      `INSERT INTO projects (code, name, client, lead, owner_employee_id, contract_amount, budget, spent, progress_pct, status, due_date, contract_date)
+       VALUES (?,?,?,?,?,?,?,0,0,'ontrack',?,?)`
     )
-    .run(nextCode, name, client || "", owner ? owner.name : req.user.name, owner ? owner.id : null, Number(contractAmount), Number(contractAmount), dueDate || null);
+    .run(nextCode, name, client || "", owner ? owner.name : req.user.name, owner ? owner.id : null, Number(contractAmount), Number(contractAmount), dueDate || null, contractDate || new Date().toISOString().slice(0, 10));
 
   const CHECKLIST_LABELS = [
     "Brief бүрэн",
@@ -233,14 +234,14 @@ router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
   if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
   if (!assertOwnsProject(req, res, project)) return;
 
-  const { name, client, ownerEmployeeId, contractAmount, dueDate } = req.body || {};
+  const { name, client, ownerEmployeeId, contractAmount, dueDate, contractDate } = req.body || {};
   if (name != null && !String(name).trim()) return res.status(400).json({ error: "name хоосон байж болохгүй" });
 
   const owner = ownerEmployeeId !== undefined ? employeeById(ownerEmployeeId) : undefined;
 
   db.prepare(
     `UPDATE projects SET
-       name = ?, client = ?, lead = ?, owner_employee_id = ?, contract_amount = ?, budget = ?, due_date = ?
+       name = ?, client = ?, lead = ?, owner_employee_id = ?, contract_amount = ?, budget = ?, due_date = ?, contract_date = ?
      WHERE id = ?`
   ).run(
     name != null ? name : project.name,
@@ -250,6 +251,7 @@ router.patch("/projects/:id", CAN_MANAGE, (req, res) => {
     contractAmount != null ? Number(contractAmount) : project.contract_amount,
     contractAmount != null ? Number(contractAmount) : project.budget,
     dueDate !== undefined ? dueDate : project.due_date,
+    contractDate ? contractDate : project.contract_date,
     project.id
   );
 
@@ -394,12 +396,12 @@ router.post("/projects/:id/cost-items", CAN_MANAGE, (req, res) => {
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id);
   if (!project) return res.status(404).json({ error: "Төсөл олдсонгүй" });
   if (!assertOwnsProject(req, res, project)) return;
-  const { category, amount, receiptStatus } = req.body || {};
+  const { category, amount, receiptStatus, spentAt } = req.body || {};
   if (!category || !amount) return res.status(400).json({ error: "category, amount шаардлагатай" });
   const info = db
-    .prepare("INSERT INTO cost_line_items (project_id, category, amount, receipt_status) VALUES (?,?,?,?)")
-    .run(req.params.id, category, Number(amount), receiptStatus || "pending");
-  const row = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus FROM cost_line_items WHERE id = ?").get(info.lastInsertRowid);
+    .prepare("INSERT INTO cost_line_items (project_id, category, amount, receipt_status, spent_at) VALUES (?,?,?,?,?)")
+    .run(req.params.id, category, Number(amount), receiptStatus || "pending", spentAt || new Date().toISOString().slice(0, 10));
+  const row = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus, COALESCE(spent_at, substr(created_at, 1, 10)) AS spentAt FROM cost_line_items WHERE id = ?").get(info.lastInsertRowid);
   res.status(201).json(row);
 });
 
@@ -421,15 +423,16 @@ router.patch("/cost-items/:id", CAN_MANAGE, (req, res) => {
   if (!item) return res.status(404).json({ error: "Зардлын мөр олдсонгүй" });
   const project = projectForCostItem(req.params.id);
   if (project && !assertOwnsProject(req, res, project)) return;
-  const { category, amount } = req.body || {};
+  const { category, amount, spentAt } = req.body || {};
   if (category != null && !String(category).trim()) return res.status(400).json({ error: "category хоосон байж болохгүй" });
   if (amount != null && Number.isNaN(Number(amount))) return res.status(400).json({ error: "amount буруу байна" });
-  db.prepare("UPDATE cost_line_items SET category = ?, amount = ? WHERE id = ?").run(
+  db.prepare("UPDATE cost_line_items SET category = ?, amount = ?, spent_at = ? WHERE id = ?").run(
     category != null ? category : item.category,
     amount != null ? Number(amount) : item.amount,
+    spentAt ? spentAt : item.spent_at,
     item.id
   );
-  const row = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus FROM cost_line_items WHERE id = ?").get(item.id);
+  const row = db.prepare("SELECT id, category, amount, receipt_status AS receiptStatus, COALESCE(spent_at, substr(created_at, 1, 10)) AS spentAt FROM cost_line_items WHERE id = ?").get(item.id);
   res.json(row);
 });
 

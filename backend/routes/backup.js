@@ -28,6 +28,7 @@ const TABLES_IN_ORDER = [
   "tasks",
   "payment_requests",
   "notifications",
+  "salary_payments",
 ];
 
 router.get("/backup/export", (req, res) => {
