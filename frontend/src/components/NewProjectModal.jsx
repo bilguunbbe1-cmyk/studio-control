@@ -5,7 +5,8 @@ import { FieldRow, useToast } from "../components";
 
 export default function NewProjectModal({ open, onClose, onCreated }) {
   const [employees, setEmployees] = useState([]);
-  const [form, setForm] = useState({ name: "", client: "", ownerEmployeeId: "", contractAmount: "", dueDate: "" });
+  const emptyForm = () => ({ name: "", client: "", ownerEmployeeId: "", contractAmount: "", contractDate: new Date().toISOString().slice(0, 10), dueDate: "" });
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const toast = useToast();
 
@@ -25,9 +26,10 @@ export default function NewProjectModal({ open, onClose, onCreated }) {
         ownerEmployeeId: form.ownerEmployeeId || undefined,
         contractAmount: Number(form.contractAmount),
         dueDate: form.dueDate || undefined,
+        contractDate: form.contractDate || undefined,
       });
       toast(`${created.name} үүслээ`);
-      setForm({ name: "", client: "", ownerEmployeeId: "", contractAmount: "", dueDate: "" });
+      setForm(emptyForm());
       onCreated?.(created);
       onClose();
     } catch (err) {
@@ -53,6 +55,7 @@ export default function NewProjectModal({ open, onClose, onCreated }) {
             required={false}
           />
           <FieldRow label="Гэрээний дүн (₮)" type="number" value={form.contractAmount} onChange={(v) => setForm({ ...form, contractAmount: v })} />
+          <FieldRow label="Гэрээ байгуулсан огноо" type="date" value={form.contractDate} onChange={(v) => setForm({ ...form, contractDate: v })} required={false} />
           <FieldRow label="Дуусах огноо" type="date" value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} required={false} />
         </div>
         {error && <div style={{ color: "var(--rust)", fontSize: 11, marginTop: 10 }}>{error}</div>}

@@ -123,12 +123,13 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
       fields: [
         { key: "category", label: "Зардлын ангилал" },
         { key: "amount", label: "Дүн (₮)", type: "number" },
+        { key: "spentAt", label: "Зарцуулсан огноо", type: "date", defaultValue: new Date().toISOString().slice(0, 10) },
       ],
       onSubmit: async (v) => {
         if (!v.category || !v.amount || Number.isNaN(Number(v.amount))) return;
         setFormModal(null);
         try {
-          await api.addCostItem(projectId, { category: v.category, amount: Number(v.amount), receiptStatus: "pending" });
+          await api.addCostItem(projectId, { category: v.category, amount: Number(v.amount), receiptStatus: "pending", spentAt: v.spentAt || undefined });
           load();
         } catch (err) {
           setError(err.message);
@@ -143,12 +144,13 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
       fields: [
         { key: "category", label: "Зардлын ангилал", defaultValue: c.category },
         { key: "amount", label: "Дүн (₮)", type: "number", defaultValue: c.amount },
+        { key: "spentAt", label: "Зарцуулсан огноо", type: "date", defaultValue: c.spentAt || "" },
       ],
       onSubmit: async (v) => {
         if (!v.category || !v.amount || Number.isNaN(Number(v.amount))) return;
         setFormModal(null);
         try {
-          await api.updateCostItem(c.id, { category: v.category, amount: Number(v.amount) });
+          await api.updateCostItem(c.id, { category: v.category, amount: Number(v.amount), spentAt: v.spentAt || undefined });
           load();
         } catch (err) {
           setError(err.message);
@@ -177,6 +179,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
       title: "Орлого бүртгэх",
       fields: [
         { key: "amount", label: "Клиентээс орж ирсэн дүн (₮)", type: "number" },
+        { key: "receivedAt", label: "Орж ирсэн огноо", type: "date", defaultValue: new Date().toISOString().slice(0, 10) },
         { key: "note", label: "Тэмдэглэл", required: false },
       ],
       submitLabel: "Бүртгэх",
@@ -184,7 +187,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
         if (!v.amount || Number.isNaN(Number(v.amount)) || Number(v.amount) <= 0) return;
         setFormModal(null);
         try {
-          await api.addPayment(projectId, { amount: Number(v.amount), note: v.note });
+          await api.addPayment(projectId, { amount: Number(v.amount), receivedAt: v.receivedAt || undefined, note: v.note });
           toast("Орлого бүртгэгдлээ");
           load();
           emit("projects-changed");
@@ -200,6 +203,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
       title: "Орлого засах",
       fields: [
         { key: "amount", label: "Клиентээс орж ирсэн дүн (₮)", type: "number", defaultValue: p.amount },
+        { key: "receivedAt", label: "Орж ирсэн огноо", type: "date", defaultValue: p.receivedAt || "" },
         { key: "note", label: "Тэмдэглэл", required: false, defaultValue: p.note || "" },
       ],
       submitLabel: "Хадгалах",
@@ -207,7 +211,7 @@ export default function ProjectDetailPanel({ projectId, user, onClose }) {
         if (!v.amount || Number.isNaN(Number(v.amount)) || Number(v.amount) <= 0) return;
         setFormModal(null);
         try {
-          await api.updatePayment(p.id, { amount: Number(v.amount), note: v.note });
+          await api.updatePayment(p.id, { amount: Number(v.amount), receivedAt: v.receivedAt || undefined, note: v.note });
           toast("Хадгалагдлаа");
           load();
           emit("projects-changed");
@@ -466,6 +470,7 @@ function EditProjectForm({ project, onCancel, onSave }) {
     client: project.client || "",
     contractAmount: project.contractAmount ?? "",
     dueDate: project.dueDate || "",
+    contractDate: project.contractDate || "",
   });
 
   useEffect(() => {
@@ -486,6 +491,7 @@ function EditProjectForm({ project, onCancel, onSave }) {
           required={false}
         />
         <FieldRow label="Гэрээний дүн (₮)" type="number" value={form.contractAmount} onChange={(v) => setForm({ ...form, contractAmount: v })} />
+        <FieldRow label="Гэрээ байгуулсан огноо" type="date" value={form.contractDate} onChange={(v) => setForm({ ...form, contractDate: v })} required={false} />
         <FieldRow label="Дуусах огноо" type="date" value={form.dueDate} onChange={(v) => setForm({ ...form, dueDate: v })} required={false} />
       </div>
       <div style={{ display: "flex", gap: 8 }}>
@@ -498,6 +504,7 @@ function EditProjectForm({ project, onCancel, onSave }) {
               ownerEmployeeId: form.ownerEmployeeId !== undefined ? form.ownerEmployeeId || null : undefined,
               contractAmount: Number(form.contractAmount),
               dueDate: form.dueDate || null,
+              contractDate: form.contractDate || undefined,
             })
           }
           style={{ background: "var(--gold)", color: "#ffffff", flex: 1, padding: "9px 0", borderRadius: 8, fontWeight: 600, fontSize: 12 }}
@@ -743,7 +750,7 @@ function CostItemRow({ c, canEdit, onReceipt, onEdit, onRemove }) {
     <div style={{ background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
       <div>
         <div style={{ fontSize: 12, fontWeight: 500 }}>{c.category}</div>
-        <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</div>
+        <div style={{ color: "var(--muted)", fontSize: 11 }} className="plex-mono">{c.amount != null && <>₮{new Intl.NumberFormat("mn-MN").format(c.amount)}</>}{c.spentAt ? `${c.amount != null ? " · " : ""}${c.spentAt}` : ""}</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         {canEdit ? (
