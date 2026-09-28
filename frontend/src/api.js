@@ -86,9 +86,16 @@ export const api = {
   getPaymentRequests: (status) => request(`/api/payment-requests${qs({ status })}`),
   payPaymentRequest: (id) => request(`/api/payment-requests/${id}/pay`, { method: "POST" }),
 
-  getFinanceSummary: () => request("/api/finance/summary"),
-  getFinanceProjects: () => request("/api/finance/projects"),
-  getUndocumentedExpenses: () => request("/api/finance/undocumented"),
+  // range: { from, to } (YYYY-MM-DD, CEO only) or undefined for all time
+  getFinanceSummary: (range) => request(`/api/finance/summary${qs(range)}`),
+  getFinanceProjects: (range) => request(`/api/finance/projects${qs(range)}`),
+  getUndocumentedExpenses: (range) => request(`/api/finance/undocumented${qs(range)}`),
+  getFinanceMonthly: (range) => request(`/api/finance/monthly${qs(range)}`),
+  getSalaryPayments: (range) => request(`/api/finance/salaries${qs(range)}`),
+  addSalaryPayment: (payload) => request("/api/finance/salaries", { method: "POST", body: payload }),
+  updateSalaryPayment: (id, payload) => request(`/api/finance/salaries/${id}`, { method: "PATCH", body: payload }),
+  deleteSalaryPayment: (id) => request(`/api/finance/salaries/${id}`, { method: "DELETE" }),
+  fillSalaryMonth: (month) => request("/api/finance/salaries/fill-month", { method: "POST", body: { month } }),
 
   getTeam: () => request("/api/team"),
 
