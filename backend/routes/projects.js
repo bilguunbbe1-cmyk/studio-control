@@ -480,7 +480,7 @@ router.patch("/review-items/:id", CAN_MANAGE, (req, res) => {
 
 // ---- Files ----
 router.get("/projects/:id/files", (req, res) => {
-  const rows = db.prepare("SELECT id, category, filename, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'project' AND owner_id = ? ORDER BY created_at DESC").all(req.params.id);
+  const rows = db.prepare("SELECT id, category, filename, stored_path AS storedPath, size_bytes AS sizeBytes, status, created_at AS createdAt FROM files WHERE owner_type = 'project' AND owner_id = ? ORDER BY created_at DESC").all(req.params.id);
   res.json(rows);
 });
 
